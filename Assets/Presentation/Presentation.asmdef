@@ -1,0 +1,17 @@
+{
+    "name": "Presentation",
+    "rootNamespace": "Presentation",
+    "references": [
+        "Core",
+        "Logic"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
