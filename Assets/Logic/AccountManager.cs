@@ -38,6 +38,18 @@ namespace Logic
             return SaveManager.LoadAllAccounts();
         }
 
+        private int pendingCreateSlotIndex = -1;
+
+        public void SetActiveSlot(int slotIndex)
+        {
+            pendingCreateSlotIndex = slotIndex;
+        }
+
+        public int GetActiveSlot()
+        {
+            return pendingCreateSlotIndex;
+        }
+
         public void CreateNewAccount(int slotIndex, string accountName)
         {
             PrepareForAccountActivation();

@@ -5,15 +5,37 @@ using Core;
 
 namespace Presentation.MiniGame
 {
+    public enum MiniGameRunState
+    {
+        Idle,
+        Running,
+        Passed,
+        Failed
+    }
+
     public abstract class MiniGameBase : MonoBehaviour
     {
         [SerializeField] protected string miniGameId;
 
         private readonly List<GameObject> _tempObjects = new List<GameObject>();
+        public MiniGameRunState RunState { get; private set; } = MiniGameRunState.Idle;
+        protected bool IsRoundRunning => RunState == MiniGameRunState.Running;
 
         protected virtual void Start()
         {
             GameManager.Instance.SetState(GameState.MiniGamePlaying);
+            StartRound();
+        }
+
+        protected void StartRound()
+        {
+            RunState = MiniGameRunState.Running;
+        }
+
+        protected void SafeRetryReset()
+        {
+            Cleanup();
+            StartRound();
         }
 
         protected void RegisterTempObject(GameObject obj)
@@ -24,6 +46,10 @@ namespace Presentation.MiniGame
 
         protected void FinishGame(int score)
         {
+            if (!IsRoundRunning)
+                return;
+            RunState = MiniGameRunState.Passed;
+
             // 记录成绩到存档
             var data = GameManager.Instance.CurrentAccountData;
             if (data != null)
@@ -59,6 +85,10 @@ namespace Presentation.MiniGame
 
         protected void FailGame()
         {
+            if (!IsRoundRunning)
+                return;
+            RunState = MiniGameRunState.Failed;
+
             Cleanup();
             EventBus.Trigger(new MiniGameFailedEvent { MiniGameId = miniGameId });
         }

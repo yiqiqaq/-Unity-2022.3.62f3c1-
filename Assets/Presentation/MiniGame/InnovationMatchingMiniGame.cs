@@ -6,28 +6,33 @@ namespace Presentation.MiniGame
     {
         [SerializeField] private float durationSeconds = 90f;
         [SerializeField] private int requiredMatchCount = 8;
+        [SerializeField] private float wrongMatchTimePenaltySeconds = 6f;
+        [SerializeField] private int wrongMatchProgressPenalty = 1;
         [SerializeField] private int scoreOnPass = 100;
 
         private float _remainingTime;
         private int _currentMatched;
-        private bool _isRunning;
 
         protected override void Start()
         {
             base.Start();
             ResetChallenge();
-            _isRunning = true;
         }
 
         private void Update()
         {
-            if (!_isRunning)
+            if (!IsRoundRunning)
                 return;
+
+            if (_currentMatched >= requiredMatchCount)
+            {
+                FinishGame(scoreOnPass);
+                return;
+            }
 
             _remainingTime -= Time.deltaTime;
             if (_remainingTime <= 0f)
             {
-                _isRunning = false;
                 if (_currentMatched >= requiredMatchCount)
                     FinishGame(scoreOnPass);
                 else
@@ -40,15 +45,28 @@ namespace Presentation.MiniGame
             _currentMatched++;
             if (_currentMatched >= requiredMatchCount)
             {
-                _isRunning = false;
                 FinishGame(scoreOnPass);
+            }
+        }
+
+        public void RegisterWrongMatch()
+        {
+            _remainingTime -= wrongMatchTimePenaltySeconds;
+            if (wrongMatchProgressPenalty > 0 && _currentMatched > 0)
+            {
+                _currentMatched = Mathf.Max(0, _currentMatched - wrongMatchProgressPenalty);
+            }
+
+            if (_remainingTime <= 0f)
+            {
+                FailGame();
             }
         }
 
         public void RetryChallenge()
         {
+            SafeRetryReset();
             ResetChallenge();
-            _isRunning = true;
         }
 
         private void ResetChallenge()

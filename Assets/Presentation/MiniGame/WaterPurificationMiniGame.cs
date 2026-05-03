@@ -5,34 +5,36 @@ namespace Presentation.MiniGame
     public class WaterPurificationMiniGame : MiniGameBase
     {
         [SerializeField] private float durationSeconds = 90f;
+        [SerializeField] private float requiredCleanRatio = 0.8f;
+        [SerializeField] private int maxMisTouches = 2;
         [SerializeField] private int scoreOnPass = 100;
 
         private float _remainingTime;
         private int _totalPollutants;
         private int _cleanedPollutants;
-        private bool _misTouchedEcoObject;
-        private bool _isRunning;
+        private int _misTouchCount;
 
         protected override void Start()
         {
             base.Start();
             ResetChallenge();
-            _isRunning = true;
         }
 
         private void Update()
         {
-            if (!_isRunning)
+            if (!IsRoundRunning)
                 return;
+
+            if (IsPassConditionMet())
+            {
+                FinishGame(scoreOnPass);
+                return;
+            }
 
             _remainingTime -= Time.deltaTime;
             if (_remainingTime <= 0f)
             {
-                _isRunning = false;
-                var pass = _totalPollutants > 0 &&
-                           !_misTouchedEcoObject &&
-                           ((float)_cleanedPollutants / _totalPollutants) >= 0.8f;
-                if (pass)
+                if (IsPassConditionMet())
                     FinishGame(scoreOnPass);
                 else
                     FailGame();
@@ -47,17 +49,20 @@ namespace Presentation.MiniGame
         public void RegisterPollutantCleaned()
         {
             _cleanedPollutants++;
+
+            if (IsPassConditionMet())
+                FinishGame(scoreOnPass);
         }
 
         public void RegisterEcoObjectMisTouch()
         {
-            _misTouchedEcoObject = true;
+            _misTouchCount++;
         }
 
         public void RetryChallenge()
         {
+            SafeRetryReset();
             ResetChallenge();
-            _isRunning = true;
         }
 
         private void ResetChallenge()
@@ -65,7 +70,17 @@ namespace Presentation.MiniGame
             _remainingTime = durationSeconds;
             _totalPollutants = 0;
             _cleanedPollutants = 0;
-            _misTouchedEcoObject = false;
+            _misTouchCount = 0;
+        }
+
+        private bool IsPassConditionMet()
+        {
+            if (_totalPollutants <= 0)
+                return false;
+            if (_misTouchCount > maxMisTouches)
+                return false;
+
+            return ((float)_cleanedPollutants / _totalPollutants) >= requiredCleanRatio;
         }
     }
 }

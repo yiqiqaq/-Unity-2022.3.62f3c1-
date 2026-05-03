@@ -1,6 +1,7 @@
 using UnityEngine;
 using Logic;
 using Core;
+using Presentation.MiniGame;
 
 namespace Presentation.Chapter
 {

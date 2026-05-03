@@ -49,6 +49,85 @@ namespace Bootstrap
             go.AddComponent<AccountManager>();
         }
 
+        /// <summary>
+        /// 确保游戏系统已创建。如果 BaseScene 已加载（TransitionManager 已存在），则跳过。
+        /// 用于其他场景的 Bootstrap 在直接启动时自举。
+        /// </summary>
+        public static void EnsureGameSystems()
+        {
+            if (TransitionManager.Instance != null)
+                return;
+
+            Debug.LogWarning("[BaseSceneBootstrap] 游戏系统不存在，自举创建");
+
+            var root = new GameObject("[GameSystems]");
+            Object.DontDestroyOnLoad(root);
+
+            if (GameManager.Instance == null)
+                CreateGameManagerStatic(root.transform);
+            if (AccountManager.Instance == null)
+                CreateAccountManagerStatic(root.transform);
+            if (TransitionManager.Instance == null)
+                CreateTransitionManagerStatic(root.transform);
+
+            Debug.Log("[BaseSceneBootstrap] 自举完成");
+        }
+
+        private static void CreateGameManagerStatic(Transform parent)
+        {
+            var go = new GameObject("[GameManager]");
+            go.transform.SetParent(parent, false);
+            go.AddComponent<GameManager>();
+        }
+
+        private static void CreateAccountManagerStatic(Transform parent)
+        {
+            var go = new GameObject("[AccountManager]");
+            go.transform.SetParent(parent, false);
+            go.AddComponent<AccountManager>();
+        }
+
+        private static void CreateTransitionManagerStatic(Transform parent)
+        {
+            var canvasGo = new GameObject("[FadeCanvas]");
+            canvasGo.transform.SetParent(parent, false);
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 9999;
+
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+
+            canvasGo.AddComponent<GraphicRaycaster>();
+
+            var bgGo = new GameObject("FadeBG");
+            bgGo.transform.SetParent(canvasGo.transform, false);
+            var bgImage = bgGo.AddComponent<Image>();
+            bgImage.color = Color.black;
+            bgImage.raycastTarget = false;
+            var bgRect = bgGo.GetComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+
+            var canvasGroup = canvasGo.AddComponent<CanvasGroup>();
+            canvasGroup.alpha = 0f;
+            canvasGroup.blocksRaycasts = false;
+
+            var tmGo = new GameObject("[TransitionManager]");
+            tmGo.transform.SetParent(parent, false);
+            var tm = tmGo.AddComponent<TransitionManager>();
+
+            var field = typeof(TransitionManager).GetField("fadeCanvasGroup",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+                field.SetValue(tm, canvasGroup);
+
+            tm.InitFadeCanvas();
+        }
+
         private void CreateTransitionManager(Transform parent)
         {
             if (TransitionManager.Instance != null) return;

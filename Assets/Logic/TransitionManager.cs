@@ -29,7 +29,8 @@ namespace Logic
                 return;
             }
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (transform.parent == null)
+                DontDestroyOnLoad(gameObject);
         }
 
         /// <summary>

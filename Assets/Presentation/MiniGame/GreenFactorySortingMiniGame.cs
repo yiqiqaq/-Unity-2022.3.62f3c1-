@@ -4,35 +4,36 @@ namespace Presentation.MiniGame
 {
     public class GreenFactorySortingMiniGame : MiniGameBase
     {
-        [SerializeField] private float durationSeconds = 60f;
+        [SerializeField] private float durationSeconds = 75f;
         [SerializeField] private int minSortedCount = 50;
-        [SerializeField] private float minAccuracy = 0.9f;
+        [SerializeField] private float minAccuracy = 0.85f;
         [SerializeField] private int scoreOnPass = 100;
 
         private float _remainingTime;
         private int _totalSorted;
         private int _correctSorted;
-        private bool _isRunning;
 
         protected override void Start()
         {
             base.Start();
             ResetChallenge();
-            _isRunning = true;
         }
 
         private void Update()
         {
-            if (!_isRunning)
+            if (!IsRoundRunning)
                 return;
+
+            if (IsPassConditionMet())
+            {
+                FinishGame(scoreOnPass);
+                return;
+            }
 
             _remainingTime -= Time.deltaTime;
             if (_remainingTime <= 0f)
             {
-                _isRunning = false;
-                var accuracy = _totalSorted == 0 ? 0f : (float)_correctSorted / _totalSorted;
-                var pass = _totalSorted >= minSortedCount && accuracy >= minAccuracy;
-                if (pass)
+                if (IsPassConditionMet())
                     FinishGame(scoreOnPass);
                 else
                     FailGame();
@@ -44,12 +45,15 @@ namespace Presentation.MiniGame
             _totalSorted++;
             if (isCorrect)
                 _correctSorted++;
+
+            if (IsPassConditionMet())
+                FinishGame(scoreOnPass);
         }
 
         public void RetryChallenge()
         {
+            SafeRetryReset();
             ResetChallenge();
-            _isRunning = true;
         }
 
         private void ResetChallenge()
@@ -57,6 +61,12 @@ namespace Presentation.MiniGame
             _remainingTime = durationSeconds;
             _totalSorted = 0;
             _correctSorted = 0;
+        }
+
+        private bool IsPassConditionMet()
+        {
+            var accuracy = _totalSorted == 0 ? 0f : (float)_correctSorted / _totalSorted;
+            return _totalSorted >= minSortedCount && accuracy >= minAccuracy;
         }
     }
 }

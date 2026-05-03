@@ -27,10 +27,47 @@ namespace Logic
                 return;
             }
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (transform.parent == null)
+                DontDestroyOnLoad(gameObject);
 
             Application.targetFrameRate = 30;
             QualitySettings.SetQualityLevel(0, true);
+        }
+
+        private void Start()
+        {
+            CheckNetworkAndInitialize();
+        }
+
+        private void CheckNetworkAndInitialize()
+        {
+            if (Application.internetReachability == NetworkReachability.NotReachable)
+            {
+                ShowNetworkWarning();
+            }
+            else
+            {
+                InitializeServices();
+            }
+        }
+
+        private void ShowNetworkWarning()
+        {
+            Debug.LogWarning("[GameManager] 无网络连接。请提醒用户连接网络才可以进行游戏。");
+            // TODO: 此处可调用UI层显示弹窗（例如: UIManager.ShowAlert("请连接网络", RetryAction)）
+        }
+
+        private void InitializeServices()
+        {
+            // 初始化天气服务等需联网的组件
+            if (WeatherService.Instance == null)
+            {
+                GameObject weatherObj = new GameObject("WeatherService");
+                weatherObj.transform.SetParent(this.transform);
+                weatherObj.AddComponent<WeatherService>();
+            }
+
+            WeatherService.Instance.FetchWeather();
         }
 
         public bool CanTransition(GameState requestedState)
