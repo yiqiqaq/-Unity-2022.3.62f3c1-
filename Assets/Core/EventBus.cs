@@ -32,7 +32,14 @@ namespace Core
         public static void Trigger<T>(T eventData)
         {
             if (_events.TryGetValue(typeof(T), out var existing))
+            {
+                UnityEngine.Debug.Log($"[EventBus] Trigger<{typeof(T).Name}> → 调用 {existing.GetInvocationList().Length} 个订阅者");
                 (existing as Action<T>)?.Invoke(eventData);
+            }
+            else
+            {
+                UnityEngine.Debug.LogWarning($"[EventBus] Trigger<{typeof(T).Name}> → 无订阅者!");
+            }
         }
 
         public static void Clear()

@@ -57,6 +57,7 @@ namespace Logic
 
         private void OnEnable()
         {
+            Debug.Log("[TransitionManager] OnEnable - 订阅 EventBus");
             EventBus.Subscribe<IntentEvent>(OnIntentReceived);
             EventBus.Subscribe<AccountSelectShowEvent>(OnAccountSelectShow);
         }
@@ -74,6 +75,7 @@ namespace Logic
 
         private void OnIntentReceived(IntentEvent evt)
         {
+            Debug.Log($"[TransitionManager] >>> OnIntentReceived: {evt.Type}, isTransitioning={isTransitioning}");
             // Logic层统一接管页面流转的信号指令
             switch (evt.Type)
             {
