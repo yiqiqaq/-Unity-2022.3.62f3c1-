@@ -16,37 +16,45 @@ namespace Bootstrap
         {
             BaseSceneBootstrap.EnsureGameSystems();
 
+            // ===== 修复 Bug3: 确保场景有相机和光源 =====
+            EnsureCameraAndLight();
+
             UIBuilder.DestroyExistingCanvas("Chapter1Canvas");
             var canvas = UIBuilder.CreateCanvas("Chapter1Canvas");
             var root = canvas.transform;
 
             // ===== 顶部 HUD =====
+            // 修复 Bug2: 标题和进度文字使用锚点定位，确保水平对称居中
             var txtChapterTitle = UIBuilder.CreateText(root, "txtChapterTitle", "",
                 fontSize: 36, anchor: TextAnchor.MiddleCenter,
-                anchoredPos: new Vector2(0, 320));
+                anchoredPos: new Vector2(0, 310));
 
             var txtProgress = UIBuilder.CreateText(root, "txtProgress", "",
                 fontSize: 18, anchor: TextAnchor.MiddleCenter,
                 color: new Color(1, 1, 1, 0.5f),
-                anchoredPos: new Vector2(0, 285));
+                anchoredPos: new Vector2(0, 275));
 
             // ===== 对话文本区域 =====
+            // 修复 Bug1: 合理设置对话区域范围，防止文字溢出重叠
             var dialogueArea = new GameObject("DialogueArea");
             dialogueArea.transform.SetParent(root, false);
             var daRt = dialogueArea.AddComponent<RectTransform>();
-            daRt.anchorMin = new Vector2(0.10f, 0.25f);
-            daRt.anchorMax = new Vector2(0.90f, 0.75f);
+            daRt.anchorMin = new Vector2(0.08f, 0.22f);
+            daRt.anchorMax = new Vector2(0.92f, 0.72f);
             daRt.offsetMin = Vector2.zero;
             daRt.offsetMax = Vector2.zero;
 
             var txtDialogue = UIBuilder.CreateText(dialogueArea.transform, "txtDialogue", "",
-                fontSize: 28, anchor: TextAnchor.UpperLeft,
+                fontSize: 26, anchor: TextAnchor.UpperLeft,
                 anchoredPos: Vector2.zero, sizeDelta: Vector2.zero);
             var tdRt = txtDialogue.GetComponent<RectTransform>();
             tdRt.anchorMin = Vector2.zero;
             tdRt.anchorMax = Vector2.one;
-            tdRt.offsetMin = Vector2.zero;
-            tdRt.offsetMax = Vector2.zero;
+            tdRt.offsetMin = new Vector2(20, 10);
+            tdRt.offsetMax = new Vector2(-20, -10);
+            // 修复 Bug1: 设置文字换行和溢出策略
+            txtDialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
+            txtDialogue.verticalOverflow = VerticalWrapMode.Overflow;
 
             // ===== 底部操作栏 =====
             var btnAdvance = UIBuilder.CreateTextButton(root, "btnAdvance", "继续",
@@ -106,12 +114,46 @@ namespace Bootstrap
             SetPrivateField(handler, "txtProgress", txtProgress);
         }
 
+
+
         private static void SetPrivateField(object target, string fieldName, object value)
         {
             var field = target.GetType().GetField(fieldName,
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             if (field != null)
                 field.SetValue(target, value);
+        }
+
+        /// <summary>
+        /// 修复 Bug3: 确保场景有 Camera 和 Directional Light，
+        /// 消除 "Display1 No cameras rendering" 提示
+        /// </summary>
+        private void EnsureCameraAndLight()
+        {
+            if (Camera.main == null)
+            {
+                var camGo = new GameObject("Main Camera");
+                camGo.tag = "MainCamera";
+                camGo.transform.position = new Vector3(0, 0, -10);
+                var cam = camGo.AddComponent<Camera>();
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 1f);
+                cam.orthographic = false;
+                cam.fieldOfView = 60;
+                cam.nearClipPlane = 0.3f;
+                cam.farClipPlane = 1000f;
+                cam.depth = -1;
+            }
+
+            if (FindObjectOfType<Light>() == null)
+            {
+                var lightGo = new GameObject("Directional Light");
+                lightGo.transform.rotation = Quaternion.Euler(50, -30, 0);
+                var light = lightGo.AddComponent<Light>();
+                light.type = LightType.Directional;
+                light.color = Color.white;
+                light.intensity = 1f;
+            }
         }
     }
 }

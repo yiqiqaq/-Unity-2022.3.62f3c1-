@@ -30,6 +30,7 @@ namespace Presentation.UI
 
         private bool _isTyping;
         private int _typingTicket;
+        private string _fullText;
 
         private void Start()
         {
@@ -55,17 +56,15 @@ namespace Presentation.UI
 
         public void ShowLine(string text)
         {
-            _typingTicket++;
-            int ticket = _typingTicket;
-            HideAllUI();
+            _fullText = text;
+            HideAllUI(); // HideAllUI 内部已递增 ticket 取消旧协程
             _isTyping = true;
-            StartCoroutine(TypeText(text, ticket));
+            StartCoroutine(TypeText(text, _typingTicket));
         }
 
         public void ShowChoices(List<DialogueChoice> choices)
         {
-            _typingTicket++;
-            HideAllUI();
+            HideAllUI(); // HideAllUI 内部已递增 ticket 取消旧协程
             if (choicePanel != null)
                 choicePanel.SetActive(true);
             BuildChoiceButtons(choices);
@@ -73,6 +72,7 @@ namespace Presentation.UI
 
         public void HideAllUI()
         {
+            _typingTicket++;
             _isTyping = false;
             if (txtDialogue != null) txtDialogue.text = "";
             if (btnAdvance != null) btnAdvance.gameObject.SetActive(false);
@@ -82,6 +82,9 @@ namespace Presentation.UI
 
         private IEnumerator TypeText(string text, int ticket)
         {
+            yield return null; // 等一帧，让 SkipTyping 有机会先执行
+            if (ticket != _typingTicket) yield break;
+
             if (txtDialogue != null) txtDialogue.text = "";
             if (btnSkip != null) btnSkip.gameObject.SetActive(true);
 
@@ -103,6 +106,7 @@ namespace Presentation.UI
             if (!_isTyping) return;
             _typingTicket++;
             _isTyping = false;
+            if (txtDialogue != null) txtDialogue.text = _fullText;
             if (btnSkip != null) btnSkip.gameObject.SetActive(false);
             if (btnAdvance != null) btnAdvance.gameObject.SetActive(true);
         }
