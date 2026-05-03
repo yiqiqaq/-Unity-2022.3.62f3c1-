@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-namespace Bootstrap
+namespace Core
 {
     /// <summary>
     /// 运行时 UI 构建工具，简化 Canvas / Text / Button / InputField 的程序化创建

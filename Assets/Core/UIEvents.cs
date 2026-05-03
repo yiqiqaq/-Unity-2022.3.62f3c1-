@@ -13,6 +13,7 @@ namespace Core
             GoToRegister,
             GoToIntro,
             GoToMainGame,
+            GoToChapter,
             GoToStartup,
             LoadAccount,
             CreateAccount,

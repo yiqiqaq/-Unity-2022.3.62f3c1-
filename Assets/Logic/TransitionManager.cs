@@ -106,6 +106,16 @@ namespace Logic
                 case IntentEvent.IntentType.GoToMainGame:
                     LoadSceneAsOverlay("Chapter1Scene"); // 根据存档进度读取对应场景
                     break;
+                case IntentEvent.IntentType.GoToChapter:
+                    int chapterIndex = evt.PayloadInt;
+                    switch (chapterIndex)
+                    {
+                        case 1: LoadSceneAsOverlay("Chapter1Scene"); break;
+                        case 2: LoadSceneAsOverlay("Chapter2Scene"); break;
+                        case 3: LoadSceneAsOverlay("Chapter3Scene"); break;
+                        default: LoadSceneAsOverlay("Chapter1Scene"); break;
+                    }
+                    break;
                 case IntentEvent.IntentType.QuitGame:
 #if UNITY_EDITOR
                     UnityEditor.EditorApplication.isPlaying = false;

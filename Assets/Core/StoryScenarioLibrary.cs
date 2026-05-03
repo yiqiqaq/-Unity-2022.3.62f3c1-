@@ -108,7 +108,7 @@ namespace Core
             };
         }
 
-        private static StoryChapterConfig BuildChapter1()
+        public static StoryChapterConfig BuildChapter1()
         {
             return new StoryChapterConfig
             {
