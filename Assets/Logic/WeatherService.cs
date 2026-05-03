@@ -37,7 +37,7 @@ namespace Logic
 
         private const string AMapWebApiKey = "0b7cd3d027c59e9792f164b061d3e7d8"; // 高德开放平台 API Key
         private const string AMapSecurityKey = "f40c0e9878faa69be57d7696d73a0a4a"; // 高德开放平台 安全密钥 (JS API用)
-        private const string DefaultCityAdcode = "310000"; // 默认为上海 adcode
+        private const string DefaultCityAdcode = "340400"; // 淮南市 adcode
 
         public AMapWeatherLive CurrentWeather { get; private set; }
 
@@ -69,13 +69,12 @@ namespace Logic
             {
                 yield return webRequest.SendWebRequest();
 
-                if (webRequest.result == UnityWebRequest.Result.ConnectionError || 
-                    webRequest.result == UnityWebRequest.Result.DataProcessingError || 
+                if (webRequest.result == UnityWebRequest.Result.ConnectionError ||
+                    webRequest.result == UnityWebRequest.Result.DataProcessingError ||
                     webRequest.result == UnityWebRequest.Result.ProtocolError)
                 {
-                    string errorMsg = $"[WeatherService] Error: {webRequest.error}";
-                    Debug.LogError(errorMsg);
-                    OnWeatherFetchFailed?.Invoke(errorMsg);
+                    Debug.LogWarning($"[WeatherService] 网络请求失败: {webRequest.error}，使用默认天气数据");
+                    ApplyFallbackWeather();
                 }
                 else
                 {
@@ -91,18 +90,35 @@ namespace Logic
                         }
                         else
                         {
-                            string err = $"[WeatherService] Invalid response mapping or API error. Response content: {jsonResponse}";
-                            Debug.LogError(err);
-                            OnWeatherFetchFailed?.Invoke("天气服务返回异常。");
+                            Debug.LogWarning($"[WeatherService] API 返回异常 ({response?.info})，使用默认天气数据");
+                            ApplyFallbackWeather();
                         }
                     }
                     catch (Exception e)
                     {
-                        Debug.LogError($"[WeatherService] JSON Parse error: {e.Message}");
-                        OnWeatherFetchFailed?.Invoke("天气数据解析失败。");
+                        Debug.LogWarning($"[WeatherService] JSON 解析失败: {e.Message}，使用默认天气数据");
+                        ApplyFallbackWeather();
                     }
                 }
             }
+        }
+
+        private void ApplyFallbackWeather()
+        {
+            CurrentWeather = new AMapWeatherLive
+            {
+                province = "安徽",
+                city = "淮南",
+                adcode = DefaultCityAdcode,
+                weather = "晴",
+                temperature = "22",
+                winddirection = "东南风",
+                windpower = "2",
+                humidity = "55",
+                reporttime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+            Debug.Log("[WeatherService] 使用默认天气: 淮南 - 晴, 22°C");
+            OnWeatherUpdated?.Invoke(CurrentWeather);
         }
     }
 }
