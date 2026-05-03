@@ -71,6 +71,7 @@ namespace Presentation.UI
         public void HideAllUI()
         {
             _isTyping = false;
+            if (txtDialogue != null) txtDialogue.text = "";
             if (btnAdvance != null) btnAdvance.gameObject.SetActive(false);
             if (btnSkip != null) btnSkip.gameObject.SetActive(false);
             if (choicePanel != null) choicePanel.SetActive(false);
