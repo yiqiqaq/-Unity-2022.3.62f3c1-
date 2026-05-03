@@ -10,6 +10,7 @@ namespace Presentation.UI
 {
     /// <summary>
     /// 可复用对话系统 UI —— 逐句展示、分支选择、跳过
+    /// 使用 _typingTicket 版本号防止旧协程写入残留文字
     /// </summary>
     public class DialogueUI : MonoBehaviour
     {
@@ -28,7 +29,7 @@ namespace Presentation.UI
         public Action<int> OnChoiceSelected;
 
         private bool _isTyping;
-        private Coroutine _typingCoroutine;
+        private int _typingTicket;
 
         private void Start()
         {
@@ -54,14 +55,16 @@ namespace Presentation.UI
 
         public void ShowLine(string text)
         {
+            _typingTicket++;
+            int ticket = _typingTicket;
             HideAllUI();
-            if (_typingCoroutine != null)
-                StopCoroutine(_typingCoroutine);
-            _typingCoroutine = StartCoroutine(TypeText(text));
+            _isTyping = true;
+            StartCoroutine(TypeText(text, ticket));
         }
 
         public void ShowChoices(List<DialogueChoice> choices)
         {
+            _typingTicket++;
             HideAllUI();
             if (choicePanel != null)
                 choicePanel.SetActive(true);
@@ -77,24 +80,19 @@ namespace Presentation.UI
             if (choicePanel != null) choicePanel.SetActive(false);
         }
 
-        private IEnumerator TypeText(string text)
+        private IEnumerator TypeText(string text, int ticket)
         {
-            _isTyping = true;
             if (txtDialogue != null) txtDialogue.text = "";
             if (btnSkip != null) btnSkip.gameObject.SetActive(true);
 
             foreach (char c in text)
             {
+                if (ticket != _typingTicket) yield break;
                 if (txtDialogue != null) txtDialogue.text += c;
                 yield return new WaitForSeconds(typingSpeed);
             }
 
-            _isTyping = false;
-            OnTypingFinished();
-        }
-
-        private void OnTypingFinished()
-        {
+            if (ticket != _typingTicket) yield break;
             _isTyping = false;
             if (btnSkip != null) btnSkip.gameObject.SetActive(false);
             if (btnAdvance != null) btnAdvance.gameObject.SetActive(true);
@@ -103,9 +101,10 @@ namespace Presentation.UI
         private void SkipTyping()
         {
             if (!_isTyping) return;
-            if (_typingCoroutine != null) StopCoroutine(_typingCoroutine);
+            _typingTicket++;
             _isTyping = false;
-            OnTypingFinished();
+            if (btnSkip != null) btnSkip.gameObject.SetActive(false);
+            if (btnAdvance != null) btnAdvance.gameObject.SetActive(true);
         }
 
         private void BuildChoiceButtons(List<DialogueChoice> choices)
