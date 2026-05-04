@@ -11,12 +11,12 @@ namespace Presentation.UI
     /// <summary>
     /// 可复用对话系统 UI —— 逐句展示、分支选择、跳过
     /// 使用 _typingTicket 版本号防止旧协程写入残留文字
+    /// 点击屏幕任意位置继续对话，跳过按钮显示为 >>>
     /// </summary>
     public class DialogueUI : MonoBehaviour
     {
         [Header("对话展示")]
         public Text txtDialogue;
-        public Button btnAdvance;
         public Button btnSkip;
 
         [Header("分支选择")]
@@ -32,13 +32,18 @@ namespace Presentation.UI
         private int _typingTicket;
         private string _fullText;
 
+        private StarBurstEffect _starBurst;
+        private Camera _overlayCam;
+
         private void Start()
         {
-            if (btnAdvance != null)
-            {
-                btnAdvance.onClick.AddListener(() => OnAdvance?.Invoke());
-                btnAdvance.gameObject.SetActive(false);
-            }
+            // 创建星光爆裂粒子效果
+            _starBurst = new GameObject("StarBurstEffect")
+                .AddComponent<StarBurstEffect>();
+
+            // 创建粒子专用覆盖相机（depth > 主相机，仅渲染粒子层）
+            SetupOverlayCamera();
+
             if (btnSkip != null)
                 btnSkip.onClick.AddListener(SkipTyping);
             if (choicePanel != null)
@@ -52,19 +57,20 @@ namespace Presentation.UI
         {
             EventBus.Unsubscribe<MiniGameStartEvent>(OnMiniGameStart);
             EventBus.Unsubscribe<MiniGameFailedEvent>(OnMiniGameFailed);
+            if (_overlayCam != null) Destroy(_overlayCam.gameObject);
         }
 
         public void ShowLine(string text)
         {
             _fullText = text;
-            HideAllUI(); // HideAllUI 内部已递增 ticket 取消旧协程
+            HideAllUI();
             _isTyping = true;
             StartCoroutine(TypeText(text, _typingTicket));
         }
 
         public void ShowChoices(List<DialogueChoice> choices)
         {
-            HideAllUI(); // HideAllUI 内部已递增 ticket 取消旧协程
+            HideAllUI();
             if (choicePanel != null)
                 choicePanel.SetActive(true);
             BuildChoiceButtons(choices);
@@ -75,14 +81,13 @@ namespace Presentation.UI
             _typingTicket++;
             _isTyping = false;
             if (txtDialogue != null) txtDialogue.text = "";
-            if (btnAdvance != null) btnAdvance.gameObject.SetActive(false);
             if (btnSkip != null) btnSkip.gameObject.SetActive(false);
             if (choicePanel != null) choicePanel.SetActive(false);
         }
 
         private IEnumerator TypeText(string text, int ticket)
         {
-            yield return null; // 等一帧，让 SkipTyping 有机会先执行
+            yield return null;
             if (ticket != _typingTicket) yield break;
 
             if (txtDialogue != null) txtDialogue.text = "";
@@ -98,7 +103,6 @@ namespace Presentation.UI
             if (ticket != _typingTicket) yield break;
             _isTyping = false;
             if (btnSkip != null) btnSkip.gameObject.SetActive(false);
-            if (btnAdvance != null) btnAdvance.gameObject.SetActive(true);
         }
 
         private void SkipTyping()
@@ -108,7 +112,44 @@ namespace Presentation.UI
             _isTyping = false;
             if (txtDialogue != null) txtDialogue.text = _fullText;
             if (btnSkip != null) btnSkip.gameObject.SetActive(false);
-            if (btnAdvance != null) btnAdvance.gameObject.SetActive(true);
+        }
+
+        private void Update()
+        {
+            // 覆盖相机跟随主相机
+            if (_overlayCam != null && Camera.main != null)
+            {
+                _overlayCam.transform.position = Camera.main.transform.position;
+                _overlayCam.transform.rotation = Camera.main.transform.rotation;
+            }
+        }
+
+        /// <summary>全屏按钮回调 — 推进对话并触发粒子特效</summary>
+        public void OnScreenClicked(Vector3 screenPosition)
+        {
+            OnAdvance?.Invoke();
+            if (_starBurst != null)
+                _starBurst.Play(screenPosition);
+        }
+
+        private void SetupOverlayCamera()
+        {
+            var camGo = new GameObject("ParticleOverlayCamera");
+            camGo.transform.SetParent(transform);
+            _overlayCam = camGo.AddComponent<Camera>();
+            _overlayCam.depth = 2;
+            _overlayCam.clearFlags = CameraClearFlags.Depth;
+            _overlayCam.cullingMask = 1 << 11; // 仅渲染第 11 层（Particles）
+            _overlayCam.fieldOfView = 60f;
+            _overlayCam.nearClipPlane = 0.3f;
+            _overlayCam.farClipPlane = 1000f;
+
+            // 同步主相机位置
+            if (Camera.main != null)
+            {
+                _overlayCam.transform.position = Camera.main.transform.position;
+                _overlayCam.transform.rotation = Camera.main.transform.rotation;
+            }
         }
 
         private void BuildChoiceButtons(List<DialogueChoice> choices)

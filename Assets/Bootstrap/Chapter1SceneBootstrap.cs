@@ -16,7 +16,6 @@ namespace Bootstrap
         {
             BaseSceneBootstrap.EnsureGameSystems();
 
-            // ===== 修复 Bug3: 确保场景有相机和光源 =====
             EnsureCameraAndLight();
 
             UIBuilder.DestroyExistingCanvas("Chapter1Canvas");
@@ -24,7 +23,6 @@ namespace Bootstrap
             var root = canvas.transform;
 
             // ===== 顶部 HUD =====
-            // 修复 Bug2: 标题和进度文字使用锚点定位，确保水平对称居中
             var txtChapterTitle = UIBuilder.CreateText(root, "txtChapterTitle", "",
                 fontSize: 36, anchor: TextAnchor.MiddleCenter,
                 anchoredPos: new Vector2(0, 310));
@@ -35,7 +33,6 @@ namespace Bootstrap
                 anchoredPos: new Vector2(0, 275));
 
             // ===== 对话文本区域 =====
-            // 修复 Bug1: 合理设置对话区域范围，防止文字溢出重叠
             var dialogueArea = new GameObject("DialogueArea");
             dialogueArea.transform.SetParent(root, false);
             var daRt = dialogueArea.AddComponent<RectTransform>();
@@ -52,20 +49,8 @@ namespace Bootstrap
             tdRt.anchorMax = Vector2.one;
             tdRt.offsetMin = new Vector2(20, 10);
             tdRt.offsetMax = new Vector2(-20, -10);
-            // 修复 Bug1: 设置文字换行和溢出策略
             txtDialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
             txtDialogue.verticalOverflow = VerticalWrapMode.Overflow;
-
-            // ===== 底部操作栏 =====
-            var btnAdvance = UIBuilder.CreateTextButton(root, "btnAdvance", "继续",
-                fontSize: 26,
-                anchoredPos: new Vector2(0, -280),
-                sizeDelta: new Vector2(200, 55));
-
-            var btnSkip = UIBuilder.CreateTextButton(root, "btnSkip", "跳过",
-                fontSize: 20,
-                anchoredPos: new Vector2(420, -280),
-                sizeDelta: new Vector2(120, 44));
 
             // ===== 分支选择面板 =====
             var choicePanel = new GameObject("ChoicePanel");
@@ -99,22 +84,47 @@ namespace Bootstrap
 
             choicePanel.SetActive(false);
 
+            // ===== 跳过按钮（>>> 样式）=====
+            var btnSkip = UIBuilder.CreateTextButton(root, "btnSkip", ">>>",
+                fontSize: 20,
+                anchoredPos: new Vector2(420, -280),
+                sizeDelta: new Vector2(120, 44));
+
+            // ===== 全屏点击区域（代替原"继续"按钮）=====
+            var btnFullScreen = new GameObject("btnFullScreen");
+            btnFullScreen.transform.SetParent(root, false);
+            var bfRt = btnFullScreen.AddComponent<RectTransform>();
+            bfRt.anchorMin = Vector2.zero;
+            bfRt.anchorMax = Vector2.one;
+            bfRt.offsetMin = Vector2.zero;
+            bfRt.offsetMax = Vector2.zero;
+
+            var bfImg = btnFullScreen.AddComponent<Image>();
+            bfImg.color = new Color(0, 0, 0, 0.01f); // 近透明但可点击
+            bfImg.raycastTarget = true;
+
+            // 全屏按钮置于最底层 —— choicePanel 是其兄弟且先创建，
+            // 因此 choicePanel 的子按钮优先接收点击事件
+            bfRt.SetAsLastSibling();
+
             // ===== 连线 DialogueUI =====
             var dialogueUI = gameObject.AddComponent<DialogueUI>();
             dialogueUI.txtDialogue = txtDialogue;
-            dialogueUI.btnAdvance = btnAdvance;
             dialogueUI.btnSkip = btnSkip;
             dialogueUI.choicePanel = choicePanel;
             dialogueUI.choiceContainer = choiceContainer.transform;
 
+            // 全屏按钮 → 推进对话 + 粒子特效
+            var bfBtn = btnFullScreen.AddComponent<Button>();
+            bfBtn.targetGraphic = bfImg;
+            bfBtn.onClick.AddListener(() =>
+                dialogueUI.OnScreenClicked(Input.mousePosition));
+
             // ===== 连线 Chapter1Handler =====
             var handler = gameObject.AddComponent<Chapter1Handler>();
-            // 通过反射设置 private SerializeField
             SetPrivateField(handler, "txtChapterTitle", txtChapterTitle);
             SetPrivateField(handler, "txtProgress", txtProgress);
         }
-
-
 
         private static void SetPrivateField(object target, string fieldName, object value)
         {
@@ -125,8 +135,8 @@ namespace Bootstrap
         }
 
         /// <summary>
-        /// 修复 Bug3: 确保场景有 Camera 和 Directional Light，
-        /// 消除 "Display1 No cameras rendering" 提示
+        /// 确保场景有 Camera 和 Directional Light，
+        /// 主相机排除 Particles 层（第 11 层由覆盖相机渲染）
         /// </summary>
         private void EnsureCameraAndLight()
         {
@@ -144,6 +154,10 @@ namespace Bootstrap
                 cam.farClipPlane = 1000f;
                 cam.depth = -1;
             }
+
+            // 主相机不渲染第 11 层（Particles），由覆盖相机负责
+            if (Camera.main != null)
+                Camera.main.cullingMask &= ~(1 << 11);
 
             if (FindObjectOfType<Light>() == null)
             {
