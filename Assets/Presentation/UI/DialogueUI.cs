@@ -34,6 +34,7 @@ namespace Presentation.UI
 
         private StarBurstEffect _starBurst;
         private Camera _overlayCam;
+        private bool _suspended; // 小游戏期间暂停响应点击
 
         private void Start()
         {
@@ -51,12 +52,14 @@ namespace Presentation.UI
                 choicePanel.SetActive(false);
 
             EventBus.Subscribe<MiniGameStartEvent>(OnMiniGameStart);
+            EventBus.Subscribe<MiniGameCompleteEvent>(OnMiniGameComplete);
             EventBus.Subscribe<MiniGameFailedEvent>(OnMiniGameFailed);
         }
 
         private void OnDestroy()
         {
             EventBus.Unsubscribe<MiniGameStartEvent>(OnMiniGameStart);
+            EventBus.Unsubscribe<MiniGameCompleteEvent>(OnMiniGameComplete);
             EventBus.Unsubscribe<MiniGameFailedEvent>(OnMiniGameFailed);
             if (_overlayCam != null) Destroy(_overlayCam.gameObject);
         }
@@ -129,6 +132,7 @@ namespace Presentation.UI
         /// <summary>全屏按钮回调 — 推进对话并触发粒子特效</summary>
         public void OnScreenClicked(Vector3 screenPosition)
         {
+            if (_suspended) return;
             OnAdvance?.Invoke();
             if (_starBurst != null)
                 _starBurst.Play(screenPosition);
@@ -174,7 +178,26 @@ namespace Presentation.UI
             }
         }
 
-        private void OnMiniGameStart(MiniGameStartEvent evt) => HideAllUI();
-        private void OnMiniGameFailed(MiniGameFailedEvent evt) { }
+        private void OnMiniGameStart(MiniGameStartEvent evt)
+        {
+            _suspended = true;
+            HideAllUI();
+            if (_starBurst != null) _starBurst.gameObject.SetActive(false);
+            if (_overlayCam != null) _overlayCam.gameObject.SetActive(false);
+        }
+
+        private void OnMiniGameComplete(MiniGameCompleteEvent evt)
+        {
+            _suspended = false;
+            if (_starBurst != null) _starBurst.gameObject.SetActive(true);
+            if (_overlayCam != null) _overlayCam.gameObject.SetActive(true);
+        }
+
+        private void OnMiniGameFailed(MiniGameFailedEvent evt)
+        {
+            _suspended = false;
+            if (_starBurst != null) _starBurst.gameObject.SetActive(true);
+            if (_overlayCam != null) _overlayCam.gameObject.SetActive(true);
+        }
     }
 }
