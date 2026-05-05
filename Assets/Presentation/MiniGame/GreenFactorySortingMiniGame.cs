@@ -63,6 +63,13 @@ namespace Presentation.MiniGame
             _correctSorted = 0;
         }
 
+        // 公开属性
+        public float RemainingTime => _remainingTime;
+        public int   TotalSorted => _totalSorted;
+        public int   CorrectSorted => _correctSorted;
+        public float AccuracyValue => _totalSorted > 0 ? (float)_correctSorted / _totalSorted : 0f;
+        public float DurationSeconds => durationSeconds;
+
         private bool IsPassConditionMet()
         {
             var accuracy = _totalSorted == 0 ? 0f : (float)_correctSorted / _totalSorted;

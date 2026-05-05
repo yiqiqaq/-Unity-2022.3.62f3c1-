@@ -12,6 +12,7 @@ namespace Presentation.MiniGame
 
         private float _remainingTime;
         private int _currentMatched;
+        private int _errorCount;
 
         protected override void Start()
         {
@@ -51,6 +52,7 @@ namespace Presentation.MiniGame
 
         public void RegisterWrongMatch()
         {
+            _errorCount++;
             _remainingTime -= wrongMatchTimePenaltySeconds;
             if (wrongMatchProgressPenalty > 0 && _currentMatched > 0)
             {
@@ -73,6 +75,13 @@ namespace Presentation.MiniGame
         {
             _remainingTime = durationSeconds;
             _currentMatched = 0;
+            _errorCount = 0;
         }
+
+        // 公开属性
+        public float RemainingTime => _remainingTime;
+        public int   CurrentMatched => _currentMatched;
+        public int   ErrorCount => _errorCount;
+        public float DurationSeconds => durationSeconds;
     }
 }

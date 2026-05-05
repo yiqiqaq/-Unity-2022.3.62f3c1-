@@ -177,7 +177,7 @@ namespace Core
             };
         }
 
-        private static StoryChapterConfig BuildChapter2()
+        public static StoryChapterConfig BuildChapter2()
         {
             return new StoryChapterConfig
             {
@@ -246,7 +246,7 @@ namespace Core
             };
         }
 
-        private static StoryChapterConfig BuildChapter3()
+        public static StoryChapterConfig BuildChapter3()
         {
             return new StoryChapterConfig
             {
