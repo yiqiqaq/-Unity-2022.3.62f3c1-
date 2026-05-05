@@ -23,7 +23,8 @@ namespace Presentation.MiniGame
 
         protected virtual void Start()
         {
-            GameManager.Instance.SetState(GameState.MiniGamePlaying);
+            if (GameManager.Instance != null)
+                GameManager.Instance.SetState(GameState.MiniGamePlaying);
             StartRound();
         }
 
@@ -51,19 +52,22 @@ namespace Presentation.MiniGame
             RunState = MiniGameRunState.Passed;
 
             // 记录成绩到存档
-            var data = GameManager.Instance.CurrentAccountData;
-            if (data != null)
+            if (GameManager.Instance != null)
             {
-                var result = data.MiniGameResults.Find(r => r.MiniGameId == miniGameId);
-                if (result == null)
+                var data = GameManager.Instance.CurrentAccountData;
+                if (data != null)
                 {
-                    result = new MiniGameResult { MiniGameId = miniGameId };
-                    data.MiniGameResults.Add(result);
+                    var result = data.MiniGameResults.Find(r => r.MiniGameId == miniGameId);
+                    if (result == null)
+                    {
+                        result = new MiniGameResult { MiniGameId = miniGameId };
+                        data.MiniGameResults.Add(result);
+                    }
+                    result.IsCompleted = true;
+                    result.Score = score;
                 }
-                result.IsCompleted = true;
-                result.Score = score;
+                GameManager.Instance.AutoSaveActiveAccount();
             }
-            GameManager.Instance.AutoSaveActiveAccount();
 
             // 清理临时对象
             Cleanup();
@@ -71,9 +75,9 @@ namespace Presentation.MiniGame
             // 通知章节小游戏结束
             EventBus.Trigger(new MiniGameCompleteEvent { MiniGameId = miniGameId, Score = score });
 
-            // 卸载自身所在场景
+            // 卸载自身所在场景（独立场景时才有效）
             var scene = gameObject.scene;
-            if (scene.IsValid())
+            if (scene.IsValid() && scene.isLoaded)
             {
                 UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
             }

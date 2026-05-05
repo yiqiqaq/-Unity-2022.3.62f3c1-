@@ -22,8 +22,10 @@ namespace Presentation.Chapter
 
         private void Start()
         {
+            Debug.Log("[CH1Handler] Start BEGIN");
             _config = StoryScenarioLibrary.BuildChapter1();
             _dialogue = FindObjectOfType<DialogueUI>();
+            Debug.Log($"[CH1Handler] _dialogue found: {_dialogue != null}, _config: {_config != null}");
 
             if (txtChapterTitle != null)
                 txtChapterTitle.text = _config.ChapterName;
@@ -32,6 +34,7 @@ namespace Presentation.Chapter
             EventBus.Subscribe<MiniGameCompleteEvent>(OnMiniGameComplete);
 
             StartDialogueSequence(_config.PreludeDialogues, state: 0);
+            Debug.Log("[CH1Handler] Start COMPLETE");
         }
 
         private void OnDestroy()
@@ -49,6 +52,7 @@ namespace Presentation.Chapter
 
         private void ShowCurrentNode()
         {
+            Debug.Log($"[CH1Handler] ShowCurrentNode: idx={_currentIndex}, list.Count={_currentList?.Count}, state={_state}");
             if (_currentIndex >= _currentList.Count)
             {
                 OnSequenceEnd();

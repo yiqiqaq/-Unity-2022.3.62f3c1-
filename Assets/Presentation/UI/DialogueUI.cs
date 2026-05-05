@@ -37,6 +37,7 @@ namespace Presentation.UI
 
         private void Start()
         {
+            Debug.Log("[DialogueUI] Start — creating star burst + overlay camera");
             // 创建星光爆裂粒子效果
             _starBurst = new GameObject("StarBurstEffect")
                 .AddComponent<StarBurstEffect>();
@@ -62,6 +63,7 @@ namespace Presentation.UI
 
         public void ShowLine(string text)
         {
+            Debug.Log($"[DialogueUI] ShowLine: {text.Substring(0, Mathf.Min(30, text.Length))}...");
             _fullText = text;
             HideAllUI();
             _isTyping = true;

@@ -148,56 +148,81 @@ namespace Logic
             isTransitioning = true;
             Debug.Log($"[TM] LoadSceneRoutine: {targetSceneName}");
 
-            // Fade-in
-            if (fadeCanvasGroup != null)
+            try
             {
-                fadeCanvasGroup.blocksRaycasts = true;
-                fadeCanvasGroup.alpha = 1f;
+                // 激活黑幕并 Fade-in
+                if (fadeCanvasGroup != null)
+                {
+                    var fadeGo = fadeCanvasGroup.gameObject;
+                    if (!fadeGo.activeSelf) fadeGo.SetActive(true);
+                    fadeCanvasGroup.blocksRaycasts = true;
+                    SetFadeRaycasterEnabled(true);
+                    fadeCanvasGroup.alpha = 1f;
+                }
+
+                // 卸载旧场景
+                if (!string.IsNullOrEmpty(currentActiveOverlay))
+                {
+                    Debug.Log($"[TM] Unloading: {currentActiveOverlay}");
+                    yield return SceneManager.UnloadSceneAsync(currentActiveOverlay);
+                }
+
+                Resources.UnloadUnusedAssets();
+
+                // 加载新场景
+                var asyncLoad = SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Additive);
+                if (asyncLoad == null)
+                {
+                    Debug.LogError($"[TM] LoadSceneAsync NULL: {targetSceneName}");
+                    yield break;
+                }
+                asyncLoad.allowSceneActivation = true;
+                yield return asyncLoad;
+
+                currentActiveOverlay = targetSceneName;
+                yield return null;
+
+                var newScene = SceneManager.GetSceneByName(targetSceneName);
+                if (newScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(newScene);
+                    Debug.Log($"[TM] Scene loaded and activated: {targetSceneName}");
+                    // 诊断：检查场景中的关键对象
+                    var rootObjects = newScene.GetRootGameObjects();
+                    Debug.Log($"[TM] Scene root objects count: {rootObjects.Length}");
+                    foreach (var ro in rootObjects)
+                        Debug.Log($"[TM]   Root: {ro.name} active={ro.activeSelf}");
+                    var canvases = UnityEngine.Object.FindObjectsOfType<UnityEngine.Canvas>();
+                    Debug.Log($"[TM] Total Canvases in all scenes: {canvases.Length}");
+                    foreach (var c in canvases)
+                        Debug.Log($"[TM]   Canvas: {c.name} order={c.sortingOrder} active={c.gameObject.activeSelf} scene={c.gameObject.scene.name}");
+                    Debug.Log($"[TM] Camera.main: {(Camera.main != null ? Camera.main.name + " scene=" + Camera.main.gameObject.scene.name : "NULL")}");
+                    var es = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+                    Debug.Log($"[TM] EventSystem: {(es != null ? es.name : "NULL")}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[TM] Scene not valid after load: {targetSceneName}");
+                }
             }
-
-            // 卸载旧场景
-            if (!string.IsNullOrEmpty(currentActiveOverlay))
+            finally
             {
-                yield return SceneManager.UnloadSceneAsync(currentActiveOverlay);
-            }
-
-            Resources.UnloadUnusedAssets();
-
-            // 加载新场景
-            var asyncLoad = SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Additive);
-            if (asyncLoad == null)
-            {
-                Debug.LogError($"[TM] LoadSceneAsync NULL: {targetSceneName}");
+                // 彻底隐藏黑幕 Canvas，防止残留遮挡
                 if (fadeCanvasGroup != null)
                 {
                     fadeCanvasGroup.alpha = 0f;
                     fadeCanvasGroup.blocksRaycasts = false;
+                    SetFadeRaycasterEnabled(false);
+                    fadeCanvasGroup.gameObject.SetActive(false);
+                    Debug.Log("[TM] FadeCanvas deactivated");
+                }
+                else
+                {
+                    Debug.LogWarning("[TM] fadeCanvasGroup is NULL in finally!");
                 }
                 isTransitioning = false;
-                yield break;
+                Debug.Log($"[TM] Completed: {targetSceneName}");
             }
-            asyncLoad.allowSceneActivation = true;
-            yield return asyncLoad;
-
-            currentActiveOverlay = targetSceneName;
-            yield return null;
-
-            var newScene = SceneManager.GetSceneByName(targetSceneName);
-            if (newScene.IsValid())
-            {
-                SceneManager.SetActiveScene(newScene);
-                Debug.Log($"[TM] Scene loaded: {targetSceneName}");
-            }
-
-            // Fade-out
-            if (fadeCanvasGroup != null)
-            {
-                fadeCanvasGroup.alpha = 0f;
-                fadeCanvasGroup.blocksRaycasts = false;
-            }
-
-            isTransitioning = false;
-            Debug.Log($"[TM] Completed: {targetSceneName}");
         }
 
         /// <summary>

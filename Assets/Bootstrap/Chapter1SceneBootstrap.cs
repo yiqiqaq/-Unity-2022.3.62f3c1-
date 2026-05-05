@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Presentation.UI;
 using Presentation.Chapter;
+using Presentation.MiniGame;
 using Core;
 
 namespace Bootstrap
@@ -14,12 +15,16 @@ namespace Bootstrap
     {
         private void Awake()
         {
+            Debug.Log("[Chapter1BS] Awake START — scene: " + gameObject.scene.name);
             BaseSceneBootstrap.EnsureGameSystems();
+            Debug.Log("[Chapter1BS] EnsureGameSystems done, Camera.main=" + (Camera.main != null ? Camera.main.name : "NULL"));
 
             EnsureCameraAndLight();
+            Debug.Log("[Chapter1BS] EnsureCameraAndLight done, Camera.main=" + (Camera.main != null ? Camera.main.name : "NULL") + " tag=" + (Camera.main != null ? Camera.main.tag : ""));
 
             UIBuilder.DestroyExistingCanvas("Chapter1Canvas");
             var canvas = UIBuilder.CreateCanvas("Chapter1Canvas");
+            Debug.Log("[Chapter1BS] Chapter1Canvas created: " + (canvas != null) + " active=" + (canvas != null ? canvas.gameObject.activeSelf.ToString() : "N/A"));
             var root = canvas.transform;
 
             // ===== 顶部 HUD =====
@@ -120,10 +125,14 @@ namespace Bootstrap
             bfBtn.onClick.AddListener(() =>
                 dialogueUI.OnScreenClicked(Input.mousePosition));
 
+            // ===== 小游戏加载器 =====
+            gameObject.AddComponent<MiniGameLoader>();
+
             // ===== 连线 Chapter1Handler =====
             var handler = gameObject.AddComponent<Chapter1Handler>();
             SetPrivateField(handler, "txtChapterTitle", txtChapterTitle);
             SetPrivateField(handler, "txtProgress", txtProgress);
+            Debug.Log("[Chapter1BS] Awake COMPLETE — all UI built, handler wired");
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)

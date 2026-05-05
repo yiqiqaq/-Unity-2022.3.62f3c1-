@@ -31,6 +31,13 @@ namespace Presentation.MiniGame
                 return;
             }
 
+            // 误触超限 → 立即失败
+            if (_misTouchCount > maxMisTouches)
+            {
+                FailGame();
+                return;
+            }
+
             _remainingTime -= Time.deltaTime;
             if (_remainingTime <= 0f)
             {
@@ -57,6 +64,9 @@ namespace Presentation.MiniGame
         public void RegisterEcoObjectMisTouch()
         {
             _misTouchCount++;
+            // 误触超限立即判定失败
+            if (_misTouchCount > maxMisTouches && IsRoundRunning)
+                FailGame();
         }
 
         public void RetryChallenge()
@@ -64,6 +74,23 @@ namespace Presentation.MiniGame
             SafeRetryReset();
             ResetChallenge();
         }
+
+        /// <summary>统一实体回调入口，供场景管理器调用</summary>
+        public void OnEntityDropped(bool isPollutant)
+        {
+            if (isPollutant)
+                RegisterPollutantCleaned();
+            else
+                RegisterEcoObjectMisTouch();
+        }
+
+        // 公开属性供 HUD 和场景使用
+        public float RemainingTime => _remainingTime;
+        public int   TotalPollutants => _totalPollutants;
+        public int   CleanedPollutants => _cleanedPollutants;
+        public int   MisTouchCount => _misTouchCount;
+        public float CleanRatioValue => _totalPollutants > 0 ? (float)_cleanedPollutants / _totalPollutants : 0f;
+        public float DurationSeconds => durationSeconds;
 
         private void ResetChallenge()
         {
