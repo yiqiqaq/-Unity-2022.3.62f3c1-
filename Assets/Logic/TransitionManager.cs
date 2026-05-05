@@ -154,43 +154,41 @@ namespace Logic
             isTransitioning = true;
             Debug.Log($"[TM] LoadSceneRoutine: {targetSceneName}");
 
-            try
+            // 激活黑幕并 Fade-in
+            if (fadeCanvasGroup != null)
             {
-                // 激活黑幕并 Fade-in
-                if (fadeCanvasGroup != null)
+                var fadeGo = fadeCanvasGroup.gameObject;
+                if (!fadeGo.activeSelf) fadeGo.SetActive(true);
+                fadeCanvasGroup.blocksRaycasts = true;
+                SetFadeRaycasterEnabled(true);
+
+                float elapsed = 0f;
+                while (elapsed < fadeDuration)
                 {
-                    var fadeGo = fadeCanvasGroup.gameObject;
-                    if (!fadeGo.activeSelf) fadeGo.SetActive(true);
-                    fadeCanvasGroup.blocksRaycasts = true;
-                    SetFadeRaycasterEnabled(true);
-
-                    // Fade-in: alpha 0→1
-                    float elapsed = 0f;
-                    while (elapsed < fadeDuration)
-                    {
-                        elapsed += Time.unscaledDeltaTime;
-                        fadeCanvasGroup.alpha = Mathf.Clamp01(elapsed / fadeDuration);
-                        yield return null;
-                    }
-                    fadeCanvasGroup.alpha = 1f;
+                    elapsed += Time.unscaledDeltaTime;
+                    fadeCanvasGroup.alpha = Mathf.Clamp01(elapsed / fadeDuration);
+                    yield return null;
                 }
+                fadeCanvasGroup.alpha = 1f;
+            }
 
-                // 卸载旧场景
-                if (!string.IsNullOrEmpty(currentActiveOverlay))
-                {
-                    Debug.Log($"[TM] Unloading: {currentActiveOverlay}");
-                    yield return SceneManager.UnloadSceneAsync(currentActiveOverlay);
-                }
+            // 卸载旧场景
+            if (!string.IsNullOrEmpty(currentActiveOverlay))
+            {
+                Debug.Log($"[TM] Unloading: {currentActiveOverlay}");
+                yield return SceneManager.UnloadSceneAsync(currentActiveOverlay);
+            }
 
-                Resources.UnloadUnusedAssets();
+            Resources.UnloadUnusedAssets();
 
-                // 加载新场景
-                var asyncLoad = SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Additive);
-                if (asyncLoad == null)
-                {
-                    Debug.LogError($"[TM] LoadSceneAsync NULL: {targetSceneName}");
-                    yield break;
-                }
+            // 加载新场景
+            var asyncLoad = SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Additive);
+            if (asyncLoad == null)
+            {
+                Debug.LogError($"[TM] LoadSceneAsync NULL: {targetSceneName}");
+            }
+            else
+            {
                 asyncLoad.allowSceneActivation = true;
                 yield return asyncLoad;
 
@@ -203,7 +201,6 @@ namespace Logic
                     SceneManager.SetActiveScene(newScene);
                     Debug.Log($"[TM] Scene loaded and activated: {targetSceneName}");
 #if UNITY_EDITOR
-                    // 诊断：仅在编辑器中检查场景关键对象
                     var rootObjects = newScene.GetRootGameObjects();
                     Debug.Log($"[TM] Scene root objects count: {rootObjects.Length}");
                     foreach (var ro in rootObjects)
@@ -222,31 +219,26 @@ namespace Logic
                     Debug.LogWarning($"[TM] Scene not valid after load: {targetSceneName}");
                 }
             }
-            finally
+
+            // Fade-out: alpha 1→0（无论加载成功与否都执行）
+            if (fadeCanvasGroup != null)
             {
-                // Fade-out: alpha 1→0
-                if (fadeCanvasGroup != null)
+                float elapsed = 0f;
+                while (elapsed < fadeDuration)
                 {
-                    float elapsed = 0f;
-                    while (elapsed < fadeDuration)
-                    {
-                        elapsed += Time.unscaledDeltaTime;
-                        fadeCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / fadeDuration);
-                        yield return null;
-                    }
-                    fadeCanvasGroup.alpha = 0f;
-                    fadeCanvasGroup.blocksRaycasts = false;
-                    SetFadeRaycasterEnabled(false);
-                    fadeCanvasGroup.gameObject.SetActive(false);
-                    Debug.Log("[TM] FadeCanvas deactivated");
+                    elapsed += Time.unscaledDeltaTime;
+                    fadeCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / fadeDuration);
+                    yield return null;
                 }
-                else
-                {
-                    Debug.LogWarning("[TM] fadeCanvasGroup is NULL in finally!");
-                }
-                isTransitioning = false;
-                Debug.Log($"[TM] Completed: {targetSceneName}");
+                fadeCanvasGroup.alpha = 0f;
+                fadeCanvasGroup.blocksRaycasts = false;
+                SetFadeRaycasterEnabled(false);
+                fadeCanvasGroup.gameObject.SetActive(false);
+                Debug.Log("[TM] FadeCanvas deactivated");
             }
+
+            isTransitioning = false;
+            Debug.Log($"[TM] Completed: {targetSceneName}");
         }
 
         /// <summary>
