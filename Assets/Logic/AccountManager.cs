@@ -58,15 +58,18 @@ namespace Logic
             GameManager.Instance.SetActiveAccount(slotIndex, data);
         }
 
-        public void LoadAccount(int slotIndex)
+        public bool LoadAccount(int slotIndex)
         {
             PrepareForAccountActivation();
             var data = SaveManager.Load(slotIndex);
-            if (data != null)
+            if (data == null)
             {
-                data.LastPlayTime = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                GameManager.Instance.SetActiveAccount(slotIndex, data);
+                Debug.LogError($"[AccountManager] LoadAccount failed: slot {slotIndex} data is null");
+                return false;
             }
+            data.LastPlayTime = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            GameManager.Instance.SetActiveAccount(slotIndex, data);
+            return true;
         }
 
         public void SwitchAccount()

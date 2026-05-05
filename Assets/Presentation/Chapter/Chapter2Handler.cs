@@ -95,7 +95,10 @@ namespace Presentation.Chapter
         {
             _state = 2;
             UpdateProgress("等待开始挑战");
-            var btn = UIBuilder.CreateTextButton(_dialogue.choicePanel.transform.parent,
+            Transform parent = (_dialogue.choicePanel != null)
+                ? _dialogue.choicePanel.transform.parent
+                : _dialogue.transform;
+            var btn = UIBuilder.CreateTextButton(parent,
                 "btnStartChallenge", "开始挑战", 30, Vector2.zero, new Vector2(280, 65));
             btn.onClick.AddListener(() => { Destroy(btn.gameObject); StartMiniGame(); });
             var rt = btn.GetComponent<RectTransform>();

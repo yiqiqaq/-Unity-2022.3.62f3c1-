@@ -93,9 +93,15 @@ namespace Logic
                     break;
                 case IntentEvent.IntentType.LoadAccount:
                     // 读取现存档案后直接进入第一章
-                    AccountManager.Instance.LoadAccount(evt.PayloadInt);
-                    GameManager.Instance.SetState(GameState.ChapterPlaying);
-                    LoadSceneAsOverlay("Chapter1Scene");
+                    if (AccountManager.Instance.LoadAccount(evt.PayloadInt))
+                    {
+                        GameManager.Instance.SetState(GameState.ChapterPlaying);
+                        LoadSceneAsOverlay("Chapter1Scene");
+                    }
+                    else
+                    {
+                        Debug.LogError("[TransitionManager] LoadAccount failed, staying on current scene");
+                    }
                     break;
                 case IntentEvent.IntentType.CreateAccount:
                     // 建立新档案后直接进入第一章
@@ -157,6 +163,15 @@ namespace Logic
                     if (!fadeGo.activeSelf) fadeGo.SetActive(true);
                     fadeCanvasGroup.blocksRaycasts = true;
                     SetFadeRaycasterEnabled(true);
+
+                    // Fade-in: alpha 0→1
+                    float elapsed = 0f;
+                    while (elapsed < fadeDuration)
+                    {
+                        elapsed += Time.unscaledDeltaTime;
+                        fadeCanvasGroup.alpha = Mathf.Clamp01(elapsed / fadeDuration);
+                        yield return null;
+                    }
                     fadeCanvasGroup.alpha = 1f;
                 }
 
@@ -187,7 +202,8 @@ namespace Logic
                 {
                     SceneManager.SetActiveScene(newScene);
                     Debug.Log($"[TM] Scene loaded and activated: {targetSceneName}");
-                    // 诊断：检查场景中的关键对象
+#if UNITY_EDITOR
+                    // 诊断：仅在编辑器中检查场景关键对象
                     var rootObjects = newScene.GetRootGameObjects();
                     Debug.Log($"[TM] Scene root objects count: {rootObjects.Length}");
                     foreach (var ro in rootObjects)
@@ -199,6 +215,7 @@ namespace Logic
                     Debug.Log($"[TM] Camera.main: {(Camera.main != null ? Camera.main.name + " scene=" + Camera.main.gameObject.scene.name : "NULL")}");
                     var es = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
                     Debug.Log($"[TM] EventSystem: {(es != null ? es.name : "NULL")}");
+#endif
                 }
                 else
                 {
@@ -207,9 +224,16 @@ namespace Logic
             }
             finally
             {
-                // 彻底隐藏黑幕 Canvas，防止残留遮挡
+                // Fade-out: alpha 1→0
                 if (fadeCanvasGroup != null)
                 {
+                    float elapsed = 0f;
+                    while (elapsed < fadeDuration)
+                    {
+                        elapsed += Time.unscaledDeltaTime;
+                        fadeCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / fadeDuration);
+                        yield return null;
+                    }
                     fadeCanvasGroup.alpha = 0f;
                     fadeCanvasGroup.blocksRaycasts = false;
                     SetFadeRaycasterEnabled(false);

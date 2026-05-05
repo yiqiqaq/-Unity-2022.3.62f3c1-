@@ -128,7 +128,10 @@ namespace Presentation.Chapter
             _state = 2;
             if (txtProgress != null) txtProgress.text = "等待开始挑战";
 
-            var challengeBtn = UIBuilder.CreateTextButton(_dialogue.choicePanel.transform.parent,
+            Transform parent = (_dialogue.choicePanel != null)
+                ? _dialogue.choicePanel.transform.parent
+                : _dialogue.transform;
+            var challengeBtn = UIBuilder.CreateTextButton(parent,
                 "btnStartChallenge", "开始挑战",
                 fontSize: 30, anchoredPos: Vector2.zero, sizeDelta: new Vector2(280, 65));
 
