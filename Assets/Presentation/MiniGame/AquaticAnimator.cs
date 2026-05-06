@@ -19,17 +19,22 @@ namespace Presentation.MiniGame
         private SpriteRenderer _sr;
         private float _direction = 1f;
         private float _nextTurnTime;
+        private DragHandler _drag;
 
         private void Start()
         {
             _startPos = transform.localPosition;
             _phase = Random.Range(0f, Mathf.PI * 2f);
             _sr = GetComponent<SpriteRenderer>();
+            _drag = GetComponent<DragHandler>();
             _nextTurnTime = Time.time + Random.Range(2f, 5f);
         }
 
         private void Update()
         {
+            // 拖拽中暂停动画，避免位置冲突
+            if (_drag != null && _drag.IsDragging) return;
+
             switch (Type)
             {
                 case AnimType.Fish: AnimateFish(); break;
