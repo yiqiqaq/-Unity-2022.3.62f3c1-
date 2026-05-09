@@ -20,6 +20,9 @@ namespace Bootstrap
             var canvas = UIBuilder.CreateCanvas("StartupCanvas");
             var root = canvas.transform;
 
+            // ===== 背景图 =====
+            UIBuilder.CreateBackground(root, "BgImage", "StartupBackground");
+
             // ===== 标题区 =====
             var txtTitle = UIBuilder.CreateText(root, "txtTitle", "淮畔科创行",
                 fontSize: 64, anchor: TextAnchor.MiddleCenter,

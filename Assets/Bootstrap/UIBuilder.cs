@@ -180,6 +180,29 @@ namespace Bootstrap
             return inputField;
         }
 
+        /// <summary>创建全屏背景图片 (Resources 文件夹下加载)</summary>
+        public static GameObject CreateBackground(Transform parent, string name, string resourcePath)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.SetAsFirstSibling();
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            var img = go.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.color = Color.white;
+            var sprite = Resources.Load<Sprite>(resourcePath);
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.preserveAspect = false;
+            }
+            return go;
+        }
+
         /// <summary>创建全屏半透明遮罩面板 (用于弹窗背景)</summary>
         public static GameObject CreateOverlay(Transform parent, string name, float alpha = 0.6f)
         {
