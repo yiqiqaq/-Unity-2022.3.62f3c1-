@@ -25,12 +25,6 @@ namespace Presentation.MiniGame
             if (!IsRoundRunning)
                 return;
 
-            if (IsPassConditionMet())
-            {
-                FinishGame(scoreOnPass);
-                return;
-            }
-
             _remainingTime -= Time.deltaTime;
             if (_remainingTime <= 0f)
             {
@@ -57,6 +51,8 @@ namespace Presentation.MiniGame
         public void RegisterEcoObjectMisTouch()
         {
             _misTouchCount++;
+            if (_misTouchCount > maxMisTouches && IsRoundRunning)
+                FailGame();
         }
 
         public void RetryChallenge()
@@ -64,6 +60,22 @@ namespace Presentation.MiniGame
             SafeRetryReset();
             ResetChallenge();
         }
+
+        public void OnEntityDropped(bool isPollutant)
+        {
+            if (isPollutant)
+                RegisterPollutantCleaned();
+            else
+                RegisterEcoObjectMisTouch();
+        }
+
+        public float RemainingTime => _remainingTime;
+        public int TotalPollutants => _totalPollutants;
+        public int CleanedPollutants => _cleanedPollutants;
+        public int MisTouchCount => _misTouchCount;
+        public float DurationSeconds => durationSeconds;
+        public int MaxMisTouches => maxMisTouches;
+        public float RequiredCleanRatio => requiredCleanRatio;
 
         private void ResetChallenge()
         {

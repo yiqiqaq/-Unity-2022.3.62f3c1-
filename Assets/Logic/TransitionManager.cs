@@ -83,6 +83,9 @@ namespace Logic
                 case IntentEvent.IntentType.GoToStartup:
                     LoadSceneAsOverlay("StartupScene");
                     break;
+                case IntentEvent.IntentType.GoToSummary:
+                    LoadSceneAsOverlay("SummaryScene");
+                    break;
                 case IntentEvent.IntentType.GoToLogin:
                     LoadSceneAsOverlay("LoginScene");
                     break;
@@ -92,19 +95,34 @@ namespace Logic
                     LoadSceneAsOverlay("RegisterScene");
                     break;
                 case IntentEvent.IntentType.LoadAccount:
-                    // 读取现存档案后进入介绍页
-                    AccountManager.Instance.LoadAccount(evt.PayloadInt);
-                    GameManager.Instance.SetState(GameState.AccountSelect);
-                    LoadSceneAsOverlay("IntroScene");
+                    if (AccountManager.Instance.LoadAccount(evt.PayloadInt))
+                    {
+                        GameManager.Instance.SetState(GameState.ChapterPlaying);
+                        LoadSceneAsOverlay(ResolveChapterScene());
+                    }
+                    else
+                    {
+                        Debug.LogError("[TransitionManager] LoadAccount failed, staying on current scene");
+                    }
                     break;
                 case IntentEvent.IntentType.CreateAccount:
-                    // 建立新档案后进入介绍页
+                    // 建立新档案后直接进入第一章
                     AccountManager.Instance.CreateNewAccount(evt.PayloadInt, evt.PayloadString);
-                    GameManager.Instance.SetState(GameState.AccountSelect);
-                    LoadSceneAsOverlay("IntroScene");
+                    GameManager.Instance.SetState(GameState.ChapterPlaying);
+                    LoadSceneAsOverlay("Chapter1Scene");
                     break;
                 case IntentEvent.IntentType.GoToMainGame:
-                    LoadSceneAsOverlay("Chapter1Scene"); // 根据存档进度读取对应场景
+                    LoadSceneAsOverlay(ResolveChapterScene());
+                    break;
+                case IntentEvent.IntentType.GoToChapter:
+                    int chapterIndex = evt.PayloadInt;
+                    switch (chapterIndex)
+                    {
+                        case 1: LoadSceneAsOverlay("Chapter1Scene"); break;
+                        case 2: LoadSceneAsOverlay("Chapter2Scene"); break;
+                        case 3: LoadSceneAsOverlay("Chapter3Scene"); break;
+                        default: LoadSceneAsOverlay("Chapter1Scene"); break;
+                    }
                     break;
                 case IntentEvent.IntentType.QuitGame:
 #if UNITY_EDITOR
@@ -114,6 +132,30 @@ namespace Logic
 #endif
                     break;
             }
+        }
+
+        /// <summary>根据存档进度确定应加载的章节场景</summary>
+        private string ResolveChapterScene()
+        {
+            var data = GameManager.Instance.CurrentAccountData;
+            if (data != null)
+            {
+                // 从后往前找最后一个有进度的章节
+                for (int i = data.ChapterProgresses.Count - 1; i >= 0; i--)
+                {
+                    var p = data.ChapterProgresses[i];
+                    if (p.ChapterId > ChapterIds.Prologue && (p.CurrentStep > 0 || p.IsCompleted))
+                    {
+                        switch (p.ChapterId)
+                        {
+                            case ChapterIds.HuaiheEco: return "Chapter1Scene";
+                            case ChapterIds.WanbeiManufacturing: return "Chapter2Scene";
+                            case ChapterIds.YangtzeDelta: return "Chapter3Scene";
+                        }
+                    }
+                }
+            }
+            return "Chapter1Scene";
         }
 
         /// <summary>公开入口：加载指定场景（带黑幕过渡）</summary>
@@ -136,92 +178,93 @@ namespace Logic
         private IEnumerator LoadSceneRoutine(string targetSceneName)
         {
             isTransitioning = true;
-            Debug.Log($"[TransitionManager] LoadSceneRoutine starting: {targetSceneName}");
-            SetFadeRaycasterEnabled(true);
+            Debug.Log($"[TM] LoadSceneRoutine: {targetSceneName}");
 
-            // 1. 黑幕缓动淡入 (Fade Out)
+            // 激活黑幕并 Fade-in
             if (fadeCanvasGroup != null)
             {
+                var fadeGo = fadeCanvasGroup.gameObject;
+                if (!fadeGo.activeSelf) fadeGo.SetActive(true);
                 fadeCanvasGroup.blocksRaycasts = true;
-                float t = 0;
-                while (t < fadeDuration)
+                SetFadeRaycasterEnabled(true);
+
+                float elapsed = 0f;
+                while (elapsed < fadeDuration)
                 {
-                    fadeCanvasGroup.alpha = Mathf.Lerp(0, 1, t / fadeDuration);
-                    t += Time.deltaTime;
+                    elapsed += Time.unscaledDeltaTime;
+                    fadeCanvasGroup.alpha = Mathf.Clamp01(elapsed / fadeDuration);
                     yield return null;
                 }
                 fadeCanvasGroup.alpha = 1f;
             }
 
-            // 2. 卸载当前的附加载场景 (薄场景)
+            // 卸载旧场景
             if (!string.IsNullOrEmpty(currentActiveOverlay))
             {
-                var asyncUnload = SceneManager.UnloadSceneAsync(currentActiveOverlay);
-                if (asyncUnload != null)
-                {
-                    yield return asyncUnload;
-                }
+                Debug.Log($"[TM] Unloading: {currentActiveOverlay}");
+                yield return SceneManager.UnloadSceneAsync(currentActiveOverlay);
             }
 
-            // 加强内存管控，在卸载完UI后调用一次GC
             Resources.UnloadUnusedAssets();
 
-            // 3. Additive 附加加载新场景，显式设置 allowSceneActivation = true
-            Debug.Log($"[TransitionManager] Loading scene: {targetSceneName}");
+            // 加载新场景
             var asyncLoad = SceneManager.LoadSceneAsync(targetSceneName, LoadSceneMode.Additive);
             if (asyncLoad == null)
             {
-                Debug.LogError($"[TransitionManager] LoadSceneAsync returned NULL for: {targetSceneName}. Check Build Settings!");
-                // 恢复黑幕状态，防止全黑卡死
-                if (fadeCanvasGroup != null)
-                {
-                    fadeCanvasGroup.alpha = 0f;
-                    fadeCanvasGroup.blocksRaycasts = false;
-                }
-                isTransitioning = false;
-                SetFadeRaycasterEnabled(false);
-                yield break;
-            }
-            asyncLoad.allowSceneActivation = true;
-            // 等待加载完成（progress 达到 1.0 且 isDone = true）
-            while (!asyncLoad.isDone)
-            {
-                yield return null;
-            }
-
-            currentActiveOverlay = targetSceneName;
-
-            // 等待一帧确保新场景的 Awake() 全部执行完毕
-            yield return null;
-
-            var newScene = SceneManager.GetSceneByName(targetSceneName);
-            if (newScene.IsValid())
-            {
-                SceneManager.SetActiveScene(newScene);
-                Debug.Log($"[TransitionManager] Scene loaded and activated: {targetSceneName}");
+                Debug.LogError($"[TM] LoadSceneAsync NULL: {targetSceneName}");
             }
             else
             {
-                Debug.LogError($"[TransitionManager] Scene not valid after load: {targetSceneName}");
+                asyncLoad.allowSceneActivation = true;
+                yield return asyncLoad;
+
+                currentActiveOverlay = targetSceneName;
+                yield return null;
+
+                var newScene = SceneManager.GetSceneByName(targetSceneName);
+                if (newScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(newScene);
+                    Debug.Log($"[TM] Scene loaded and activated: {targetSceneName}");
+#if UNITY_EDITOR
+                    var rootObjects = newScene.GetRootGameObjects();
+                    Debug.Log($"[TM] Scene root objects count: {rootObjects.Length}");
+                    foreach (var ro in rootObjects)
+                        Debug.Log($"[TM]   Root: {ro.name} active={ro.activeSelf}");
+                    var canvases = UnityEngine.Object.FindObjectsOfType<UnityEngine.Canvas>();
+                    Debug.Log($"[TM] Total Canvases in all scenes: {canvases.Length}");
+                    foreach (var c in canvases)
+                        Debug.Log($"[TM]   Canvas: {c.name} order={c.sortingOrder} active={c.gameObject.activeSelf} scene={c.gameObject.scene.name}");
+                    Debug.Log($"[TM] Camera.main: {(Camera.main != null ? Camera.main.name + " scene=" + Camera.main.gameObject.scene.name : "NULL")}");
+                    var es = UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+                    Debug.Log($"[TM] EventSystem: {(es != null ? es.name : "NULL")}");
+#endif
+                }
+                else
+                {
+                    Debug.LogWarning($"[TM] Scene not valid after load: {targetSceneName}");
+                }
             }
 
-            // 4. 黑幕淡出 (Fade In)
+            // Fade-out: alpha 1→0（无论加载成功与否都执行）
             if (fadeCanvasGroup != null)
             {
-                float t = 0;
-                while (t < fadeDuration)
+                float elapsed = 0f;
+                while (elapsed < fadeDuration)
                 {
-                    fadeCanvasGroup.alpha = Mathf.Lerp(1, 0, t / fadeDuration);
-                    t += Time.deltaTime;
+                    elapsed += Time.unscaledDeltaTime;
+                    fadeCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / fadeDuration);
                     yield return null;
                 }
                 fadeCanvasGroup.alpha = 0f;
                 fadeCanvasGroup.blocksRaycasts = false;
+                SetFadeRaycasterEnabled(false);
+                fadeCanvasGroup.gameObject.SetActive(false);
+                Debug.Log("[TM] FadeCanvas deactivated");
             }
 
-            SetFadeRaycasterEnabled(false);
             isTransitioning = false;
-            Debug.Log($"[TransitionManager] LoadSceneRoutine completed: {targetSceneName}");
+            Debug.Log($"[TM] Completed: {targetSceneName}");
         }
 
         /// <summary>

@@ -1,11 +1,18 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Core
 {
     public static class EventBus
     {
-        private static readonly Dictionary<Type, Delegate> _events = new Dictionary<Type, Delegate>();
+        private static Dictionary<Type, Delegate> _events = new Dictionary<Type, Delegate>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void Init()
+        {
+            _events = new Dictionary<Type, Delegate>();
+        }
 
         public static void Subscribe<T>(Action<T> handler)
         {

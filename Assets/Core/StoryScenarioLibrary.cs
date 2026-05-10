@@ -98,6 +98,50 @@ namespace Core
             "【系统】你可以选择【重新开始调研】，或【切换账户】开启新的调研之旅。"
         };
 
+        public static readonly List<DialogueNode> SummaryDialogues = new List<DialogueNode>
+        {
+            "【系统】恭喜你，科创观察员！三大主题调研任务已全部圆满完成。",
+            "【生态研究员】我们一起见证了淮河湿地从污染治理到水清岸绿的蜕变——生态修复、污水治理、湿地保护，每一步都凝聚着科技与坚守的力量。",
+            "【产业工程师】我们在皖北绿色工厂看到了智能制造、清洁能源、循环经济如何让传统产业焕发新生——绿色智造，已成安徽产业升级的核心引擎。",
+            "【区域协同专员】我们在长三角科创展厅看到了城市、产业、科创资源的精准匹配——一体化协同，正让安徽从参与者变为重要策源地。",
+            new DialogueNode
+            {
+                Text = "【区域协同专员】回顾这段旅程，你印象最深的是哪个环节？",
+                Choices = new List<DialogueChoice>
+                {
+                    new DialogueChoice
+                    {
+                        OptionText = "淮河湿地的生态治理",
+                        ReactionDialogues = new List<DialogueNode>
+                        {
+                            "【生态研究员】很高兴你对生态治理印象深刻！淮河的蝶变，正是绿水青山就是金山银山理念的生动实践。"
+                        }
+                    },
+                    new DialogueChoice
+                    {
+                        OptionText = "皖北工厂的绿色智造",
+                        ReactionDialogues = new List<DialogueNode>
+                        {
+                            "【产业工程师】绿色智造是安徽产业升级的缩影，未来还将有更多创新技术落地生根。"
+                        }
+                    },
+                    new DialogueChoice
+                    {
+                        OptionText = "长三角的科创协同",
+                        ReactionDialogues = new List<DialogueNode>
+                        {
+                            "【区域协同专员】协同创新让安徽从跟随者变为引领者，这正是长三角一体化的魅力所在。"
+                        }
+                    }
+                }
+            },
+            "【系统】你的调研成果已汇总生成《科创观察员专属报告》，包含生态保护、绿色智造、区域协同三大板块的知识卡片，永久保存在当前账户中。",
+            "【生态研究员】生态保护，道阻且长，行则将至。",
+            "【产业工程师】绿色智造，转型升级，未来可期。",
+            "【区域协同专员】科创协同，携手共进，前景广阔。",
+            "【系统】感谢你参与本次淮畔科创行，期待下次再会！"
+        };
+
         public static List<StoryChapterConfig> BuildMainChapters()
         {
             return new List<StoryChapterConfig>
@@ -108,7 +152,7 @@ namespace Core
             };
         }
 
-        private static StoryChapterConfig BuildChapter1()
+        public static StoryChapterConfig BuildChapter1()
         {
             return new StoryChapterConfig
             {
@@ -177,7 +221,7 @@ namespace Core
             };
         }
 
-        private static StoryChapterConfig BuildChapter2()
+        public static StoryChapterConfig BuildChapter2()
         {
             return new StoryChapterConfig
             {
@@ -246,7 +290,7 @@ namespace Core
             };
         }
 
-        private static StoryChapterConfig BuildChapter3()
+        public static StoryChapterConfig BuildChapter3()
         {
             return new StoryChapterConfig
             {

@@ -31,6 +31,7 @@ namespace Logic
                 DontDestroyOnLoad(gameObject);
 
             Application.targetFrameRate = 30;
+            Application.runInBackground = true;
             QualitySettings.SetQualityLevel(0, true);
         }
 
@@ -63,7 +64,6 @@ namespace Logic
             if (WeatherService.Instance == null)
             {
                 GameObject weatherObj = new GameObject("WeatherService");
-                weatherObj.transform.SetParent(this.transform);
                 weatherObj.AddComponent<WeatherService>();
             }
 

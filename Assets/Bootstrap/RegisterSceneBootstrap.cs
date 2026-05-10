@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Presentation.UI;
+using Core;
 
 namespace Bootstrap
 {
