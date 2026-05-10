@@ -74,17 +74,6 @@ namespace Presentation.MiniGame
 
             // 通知章节小游戏结束
             EventBus.Trigger(new MiniGameCompleteEvent { MiniGameId = miniGameId, Score = score });
-
-            // 卸载自身所在场景（独立场景时才有效）
-            var scene = gameObject.scene;
-            if (scene.IsValid() && scene.isLoaded)
-            {
-                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
-            }
-
-            Resources.UnloadUnusedAssets();
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
         }
 
         protected void FailGame()

@@ -27,34 +27,32 @@ namespace Bootstrap
             Debug.Log("[Chapter1BS] Chapter1Canvas created: " + (canvas != null) + " active=" + (canvas != null ? canvas.gameObject.activeSelf.ToString() : "N/A"));
             var root = canvas.transform;
 
-            // ===== 顶部 HUD =====
+            // ===== 第一章对话背景板 =====
+            UIBuilder.CreateBackground(root, "Chapter1Bg", "Chapter1DialogueBg");
+
+            // ===== 顶部 HUD（章节标题，单行） =====
             var txtChapterTitle = UIBuilder.CreateText(root, "txtChapterTitle", "",
                 fontSize: 36, anchor: TextAnchor.MiddleCenter,
                 anchoredPos: new Vector2(0, 310));
-
-            var txtProgress = UIBuilder.CreateText(root, "txtProgress", "",
-                fontSize: 18, anchor: TextAnchor.MiddleCenter,
-                color: new Color(1, 1, 1, 0.5f),
-                anchoredPos: new Vector2(0, 275));
 
             // ===== 对话文本区域 =====
             var dialogueArea = new GameObject("DialogueArea");
             dialogueArea.transform.SetParent(root, false);
             var daRt = dialogueArea.AddComponent<RectTransform>();
-            daRt.anchorMin = new Vector2(0.08f, 0.22f);
-            daRt.anchorMax = new Vector2(0.92f, 0.72f);
+            daRt.anchorMin = new Vector2(0.03f, 0.22f);
+            daRt.anchorMax = new Vector2(0.97f, 0.72f);
             daRt.offsetMin = Vector2.zero;
             daRt.offsetMax = Vector2.zero;
 
             var txtDialogue = UIBuilder.CreateText(dialogueArea.transform, "txtDialogue", "",
-                fontSize: 26, anchor: TextAnchor.UpperLeft,
+                fontSize: 27, anchor: TextAnchor.UpperLeft,
                 anchoredPos: Vector2.zero, sizeDelta: Vector2.zero);
             var tdRt = txtDialogue.GetComponent<RectTransform>();
             tdRt.anchorMin = Vector2.zero;
             tdRt.anchorMax = Vector2.one;
             tdRt.offsetMin = new Vector2(20, 10);
             tdRt.offsetMax = new Vector2(-20, -10);
-            txtDialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
+            txtDialogue.horizontalOverflow = HorizontalWrapMode.Overflow;
             txtDialogue.verticalOverflow = VerticalWrapMode.Overflow;
 
             // ===== 分支选择面板 =====
@@ -67,7 +65,7 @@ namespace Bootstrap
             cpRt.offsetMax = Vector2.zero;
 
             var choiceBg = choicePanel.AddComponent<Image>();
-            choiceBg.color = new Color(0, 0, 0, 0.55f);
+            choiceBg.color = new Color(0.12f, 0.10f, 0.06f, 0.15f); // 高透明度木色底
 
             var choiceContainer = new GameObject("ChoiceContainer");
             choiceContainer.transform.SetParent(choicePanel.transform, false);
@@ -128,10 +126,13 @@ namespace Bootstrap
             // ===== 小游戏加载器 =====
             gameObject.AddComponent<MiniGameLoader>();
 
+            // ===== 暂停菜单 =====
+            gameObject.AddComponent<PauseMenuUI>().Build(root);
+
             // ===== 连线 Chapter1Handler =====
             var handler = gameObject.AddComponent<Chapter1Handler>();
             SetPrivateField(handler, "txtChapterTitle", txtChapterTitle);
-            SetPrivateField(handler, "txtProgress", txtProgress);
+            handler.SetCanvas(canvas);
             Debug.Log("[Chapter1BS] Awake COMPLETE — all UI built, handler wired");
         }
 

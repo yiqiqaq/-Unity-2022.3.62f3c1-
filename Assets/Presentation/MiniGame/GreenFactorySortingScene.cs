@@ -1,6 +1,6 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
 using Core;
 using Logic;
 
@@ -10,11 +10,11 @@ namespace Presentation.MiniGame
     {
         private const int WINDOW_W = 1920;
         private const int WINDOW_H = 1080;
-        private const int CONV_Y = 480;
-        private const int CONV_H = 80;
+        private const int CONV_Y = 250;
         private const float CONV_SPEED = 180f;
         private const float SPAWN_INTERVAL = 1.0f;
         private const int MAX_ITEMS = 70;
+        private const float GAME_DURATION = 80f;
 
         private enum ItemType
         {
@@ -31,13 +31,13 @@ namespace Presentation.MiniGame
 
         private GreenFactorySortingMiniGame _miniGame;
         private Transform _itemContainer;
-        private Transform _conveyor;
         private Camera _cam;
         private Text _txtTimer, _txtCount, _txtAccuracy, _txtGoal;
+        private Text _txtFeedback;
+        private float _feedbackTimer;
         private GameObject _resultPanel;
         private Text _txtResultTitle, _txtResultDetail;
         private Button _btnRetry;
-        private GameObject _passZone, _failZone;
 
         private float _spawnTimer;
         private int _totalSpawned;
@@ -61,9 +61,21 @@ namespace Presentation.MiniGame
         private void Start()
         {
             _cam = Camera.main;
-            if (_cam != null) _cam.backgroundColor = new Color(0.18f, 0.18f, 0.22f);
+            if (_cam == null)
+            {
+                var camGo = new GameObject("MiniGameCamera");
+                camGo.tag = "MainCamera";
+                _cam = camGo.AddComponent<Camera>();
+                _cam.transform.position = new Vector3(0, 0, -10);
+                _cam.orthographic = true;
+                _cam.orthographicSize = 5.4f;
+            }
+            _cam.backgroundColor = new Color(0.18f, 0.18f, 0.22f);
 
             _miniGame = gameObject.AddComponent<GreenFactorySortingMiniGame>();
+            var idField = typeof(MiniGameBase).GetField("miniGameId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            idField.SetValue(_miniGame, "green_factory_sorting");
 
             BuildScene();
             UIBuilder.EnsureEventSystem();
@@ -80,40 +92,45 @@ namespace Presentation.MiniGame
 
         private void BuildScene()
         {
-            // 背景
+            // 背景（缩放至铺满屏幕）
             var bg = new GameObject("Background");
             bg.transform.SetParent(transform, false);
             var bgSr = bg.AddComponent<SpriteRenderer>();
             bgSr.sprite = MiniGameSprites.CreateFactoryBg();
             bgSr.sortingOrder = -10;
+            // 根据相机 orthographicSize 计算缩放，确保铺满
+            float camHeight = _cam.orthographicSize * 2f;
+            float camWidth = camHeight * _cam.aspect;
+            var bgBounds = bgSr.sprite.bounds;
+            bg.transform.localScale = new Vector3(
+                camWidth / bgBounds.size.x,
+                camHeight / bgBounds.size.y,
+                1f);
 
             // 传送带
-            _conveyor = new GameObject("Conveyor").transform;
-            _conveyor.SetParent(transform, false);
+            var conveyor = new GameObject("Conveyor").transform;
+            conveyor.SetParent(transform, false);
             var convSr = new GameObject("Belt").AddComponent<SpriteRenderer>();
-            convSr.transform.SetParent(_conveyor, false);
+            convSr.transform.SetParent(conveyor, false);
             convSr.sprite = MiniGameSprites.CreateConveyorBelt();
-            convSr.transform.localPosition = new Vector3(0, CONV_Y / 100f, 0);
+            convSr.transform.localPosition = new Vector3(0, CONV_Y * 0.01f, 0);
             convSr.sortingOrder = 0;
 
             // 物料容器
             _itemContainer = new GameObject("Items").transform;
             _itemContainer.SetParent(transform, false);
 
-            // 分拣区（2D 碰撞体，用于点击检测）
-            _passZone = CreateZone("PassZone", new Vector2(-7f, -3f), new Vector2(4f, 2f),
+            // 分拣区
+            CreateZone("PassZone", new Vector2(-3.5f, -3f), new Vector2(4f, 2f),
                 new Color(0.1f, 0.4f, 0.15f), "合格品区");
-            _failZone = CreateZone("FailZone", new Vector2(3f, -3f), new Vector2(4f, 2f),
+            CreateZone("FailZone", new Vector2(3.5f, -3f), new Vector2(4f, 2f),
                 new Color(0.4f, 0.25f, 0.08f), "回收处理区");
 
-            // HUD
             BuildHUD();
-
-            // 结算面板
             BuildResultPanel();
         }
 
-        private GameObject CreateZone(string name, Vector2 pos, Vector2 size, Color col, string label)
+        private void CreateZone(string name, Vector2 pos, Vector2 size, Color col, string label)
         {
             var zone = new GameObject(name);
             zone.transform.SetParent(transform, false);
@@ -125,7 +142,6 @@ namespace Presentation.MiniGame
             col2d.size = size;
             col2d.isTrigger = true;
 
-            // 标签（用子 SpriteRenderer 的 Text）
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(zone.transform, false);
             labelGo.transform.localPosition = new Vector3(0, size.y * 0.3f, 0);
@@ -142,8 +158,6 @@ namespace Presentation.MiniGame
             txt.alignment = TextAnchor.MiddleCenter;
             txt.color = Color.white;
             txt.raycastTarget = false;
-
-            return zone;
         }
 
         private void BuildHUD()
@@ -153,26 +167,44 @@ namespace Presentation.MiniGame
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 100;
-            canvasGo.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
 
             var root = canvasGo.transform;
 
+            // 顶栏背景
+            var topBar = new GameObject("TopBar");
+            topBar.transform.SetParent(root, false);
+            var topRt = topBar.AddComponent<RectTransform>();
+            topRt.anchorMin = new Vector2(0, 1);
+            topRt.anchorMax = new Vector2(1, 1);
+            topRt.pivot = new Vector2(0.5f, 1);
+            topRt.anchoredPosition = Vector2.zero;
+            topRt.sizeDelta = new Vector2(0, 56);
+            topBar.AddComponent<Image>().color = new Color(0.05f, 0.05f, 0.15f, 0.85f);
+
             _txtTimer = UIBuilder.CreateText(root, "txtTimer", "", 32,
-                TextAnchor.MiddleLeft, Color.white, new Vector2(-800, 480));
-
+                TextAnchor.MiddleLeft, Color.white, new Vector2(-750, -28));
             _txtCount = UIBuilder.CreateText(root, "txtCount", "", 24,
-                TextAnchor.MiddleLeft, Color.white, new Vector2(-500, 480));
-
+                TextAnchor.MiddleLeft, Color.white, new Vector2(-450, -28));
             _txtAccuracy = UIBuilder.CreateText(root, "txtAccuracy", "", 24,
-                TextAnchor.MiddleLeft, Color.white, new Vector2(-200, 480));
+                TextAnchor.MiddleLeft, Color.white, new Vector2(-150, -28));
+            _txtGoal = UIBuilder.CreateText(root, "txtGoal",
+                "目标: 分拣≥50% 且 准确率≥50%", 18,
+                TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f), new Vector2(250, -28));
 
-            _txtGoal = UIBuilder.CreateText(root, "txtGoal", "目标: ≥50件 且 准确率≥85%", 20,
-                TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f), new Vector2(200, 480));
+            // 分拣反馈文字（✓正确 / ✗错误）
+            _txtFeedback = UIBuilder.CreateText(root, "txtFeedback", "", 36,
+                TextAnchor.MiddleCenter, Color.white, new Vector2(0, -200));
+            _txtFeedback.text = "";
 
-            var tip = UIBuilder.CreateText(root, "txtTip",
-                "点击物料选中 → 点击左侧「合格品区」或右侧「回收处理区」分拣", 18,
-                TextAnchor.MiddleCenter, new Color(0.8f, 0.8f, 0.85f), new Vector2(0, -500));
+            // 底部提示
+            UIBuilder.CreateText(root, "txtTip",
+                "点击物料选中 → 点击下方「合格品区」或「回收处理区」完成分拣", 16,
+                TextAnchor.MiddleCenter, new Color(0.6f, 0.6f, 0.7f), new Vector2(0, -500));
         }
 
         private void BuildResultPanel()
@@ -182,7 +214,9 @@ namespace Presentation.MiniGame
             var canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 200;
-            canvasGo.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
             canvasGo.AddComponent<GraphicRaycaster>();
 
             _resultPanel = new GameObject("ResultPanel");
@@ -196,9 +230,9 @@ namespace Presentation.MiniGame
 
             var root = _resultPanel.transform;
             _txtResultTitle = UIBuilder.CreateText(root, "txtTitle", "", 48,
-                TextAnchor.MiddleCenter, Color.white, new Vector2(0, 150));
-            _txtResultDetail = UIBuilder.CreateText(root, "txtDetail", "", 28,
-                TextAnchor.MiddleCenter, Color.white, new Vector2(0, 50));
+                TextAnchor.MiddleCenter, Color.white, new Vector2(0, 120));
+            _txtResultDetail = UIBuilder.CreateText(root, "txtDetail", "", 24,
+                TextAnchor.MiddleCenter, Color.white, new Vector2(0, 30));
 
             _btnRetry = UIBuilder.CreateTextButton(root, "btnRetry", "重新挑战", 32,
                 new Vector2(0, -80), new Vector2(300, 70));
@@ -211,13 +245,13 @@ namespace Presentation.MiniGame
         {
             if (_miniGame == null || _miniGame.RunState != MiniGameRunState.Running) return;
 
-            // 倒计时由 miniGame.Update() 处理
             // 生成物料
             _spawnTimer -= Time.deltaTime;
             if (_spawnTimer <= 0 && _totalSpawned < MAX_ITEMS)
             {
                 SpawnItem();
                 _spawnTimer = SPAWN_INTERVAL;
+                _miniGame.SetTotalSpawned(_totalSpawned);
             }
 
             // 移动物料
@@ -227,14 +261,31 @@ namespace Presentation.MiniGame
                 var item = _items[i];
                 if (item.go == null) { _items.RemoveAt(i); continue; }
                 var p = item.go.transform.position;
-                p.x += dx * 0.01f; // 世界坐标
+                p.x += dx * 0.01f;
                 if (p.x > 10f)
                 {
                     Destroy(item.go);
                     _items.RemoveAt(i);
+                    if (_selectedIdx == i) _selectedIdx = -1;
+                    else if (_selectedIdx > i) _selectedIdx--;
                     continue;
                 }
                 item.go.transform.position = p;
+            }
+
+            // 点击检测
+            if (Input.GetMouseButtonDown(0) && _cam != null)
+            {
+                Vector2 worldPos = _cam.ScreenToWorldPoint(Input.mousePosition);
+                HandleScreenClick(worldPos);
+            }
+
+            // 反馈文字淡出
+            if (_feedbackTimer > 0f)
+            {
+                _feedbackTimer -= Time.deltaTime;
+                if (_feedbackTimer <= 0f)
+                    _txtFeedback.text = "";
             }
 
             UpdateHUD();
@@ -284,22 +335,31 @@ namespace Presentation.MiniGame
         private void UpdateHUD()
         {
             int sec = Mathf.CeilToInt(_miniGame.RemainingTime);
+            if (sec < 0) sec = 0;
             _txtTimer.text = $"TIME {sec / 60}:{sec % 60:D2}";
             _txtTimer.color = sec > 15 ? Color.white : (sec > 5 ? Color.yellow : Color.red);
 
-            _txtCount.text = $"已分拣: {_miniGame.TotalSorted} / 50";
+            _txtCount.text = $"已分拣: {_miniGame.TotalSorted} / {_totalSpawned}";
             float acc = _miniGame.AccuracyValue * 100f;
             _txtAccuracy.text = $"准确率: {acc:F0}%";
-            _txtAccuracy.color = acc >= 85f ? Color.green : (acc < 85f && _miniGame.TotalSorted >= 50 ? Color.red : Color.white);
+            _txtAccuracy.color = acc >= 50f ? Color.green : Color.white;
         }
 
-        // 利用 Physics2DRaycaster 检测点击
-        private void OnMouseDown()
+        private void ShowFeedback(bool correct)
         {
-            // 通过 EventSystem + Physics2DRaycaster 检测
+            if (correct)
+            {
+                _txtFeedback.text = "✓ 正确 +1";
+                _txtFeedback.color = new Color(0.3f, 1f, 0.4f);
+            }
+            else
+            {
+                _txtFeedback.text = "✗ 错误";
+                _txtFeedback.color = new Color(1f, 0.3f, 0.3f);
+            }
+            _feedbackTimer = 1.2f;
         }
 
-        // 公开方法：供全屏 UI 的按钮调用
         public void OnZoneClicked(bool isPassZone)
         {
             if (_selectedIdx < 0 || _selectedIdx >= _items.Count) return;
@@ -308,6 +368,7 @@ namespace Presentation.MiniGame
 
             bool correct = isPassZone == item.isGood;
             _miniGame.RegisterSortResult(correct);
+            ShowFeedback(correct);
 
             Destroy(item.go);
             _items.RemoveAt(_selectedIdx);
@@ -316,7 +377,6 @@ namespace Presentation.MiniGame
 
         private void OnRetry()
         {
-            // 清理所有物料
             foreach (var it in _items) if (it.go != null) Destroy(it.go);
             _items.Clear();
             _totalSpawned = 0;
@@ -342,38 +402,40 @@ namespace Presentation.MiniGame
         private void ShowResult(bool passed)
         {
             _resultPanel.SetActive(true);
+            float acc = _miniGame.AccuracyValue * 100f;
+            float sortPct = _totalSpawned > 0 ? (float)_miniGame.TotalSorted / _totalSpawned * 100f : 0f;
+
             if (passed)
             {
                 _txtResultTitle.text = "分拣完成！";
                 _txtResultTitle.color = Color.green;
-                _txtResultDetail.text = $"分拣: {_miniGame.TotalSorted} 件 | 准确率: {_miniGame.AccuracyValue * 100:F0}%";
+                _txtResultDetail.text = $"分拣: {_miniGame.TotalSorted}/{_totalSpawned} ({sortPct:F0}%)  |  准确率: {acc:F0}%";
             }
             else
             {
                 _txtResultTitle.text = "分拣失败";
                 _txtResultTitle.color = Color.red;
-                if (_miniGame.TotalSorted < 50)
-                    _txtResultDetail.text = $"原因: 仅分拣 {_miniGame.TotalSorted} 件（需≥50件）";
-                else
-                    _txtResultDetail.text = $"原因: 准确率 {_miniGame.AccuracyValue * 100:F0}% 未达85%";
+                string reason = "";
+                if (sortPct < 50f)
+                    reason += $"分拣率 {sortPct:F0}% 未达 50%";
+                if (acc < 50f)
+                    reason += (reason.Length > 0 ? "\n" : "") + $"准确率 {acc:F0}% 未达 50%";
+                _txtResultDetail.text = reason;
             }
         }
 
-        // 全屏点击检测
-        public void HandleScreenClick(Vector2 screenPos)
+        public void HandleScreenClick(Vector2 worldPos)
         {
-            Vector2 worldPos = _cam.ScreenToWorldPoint(screenPos);
-
-            // 检测分拣区
-            var hitPass = Physics2D.OverlapPoint(worldPos, LayerMask.GetMask("Default"));
-            if (hitPass != null)
+            // 优先检测分拣区
+            var hit = Physics2D.OverlapPoint(worldPos, LayerMask.GetMask("Default"));
+            if (hit != null)
             {
-                if (hitPass.gameObject.name == "PassZone")
+                if (hit.gameObject.name == "PassZone")
                 {
                     OnZoneClicked(true);
                     return;
                 }
-                if (hitPass.gameObject.name == "FailZone")
+                if (hit.gameObject.name == "FailZone")
                 {
                     OnZoneClicked(false);
                     return;

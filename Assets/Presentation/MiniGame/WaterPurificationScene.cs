@@ -376,10 +376,17 @@ namespace Presentation.MiniGame
 
         private void BuildHUD()
         {
-            // 独立 Canvas（不挂在场景 GO 下），与 UIBuilder.CreateCanvas 模式一致
-            _hudCanvas = UIBuilder.CreateCanvas("MiniGameHUD");
+            // Canvas 挂在场景 GO 下，随场景销毁自动清理
+            var canvasGo = new GameObject("MiniGameHUD");
+            canvasGo.transform.SetParent(transform, false);
+            _hudCanvas = canvasGo.AddComponent<Canvas>();
+            _hudCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             _hudCanvas.sortingOrder = 100;
-            var canvasGo = _hudCanvas.gameObject;
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
+            canvasGo.AddComponent<GraphicRaycaster>();
 
             // 顶栏背景
             var topBarGo = new GameObject("TopBar");
@@ -399,8 +406,9 @@ namespace Presentation.MiniGame
                 "已清理: 0 / 0 (0%)", 24, new Vector2(-200, -30), new Color(0.8f, 0.95f, 1f));
             _txtMisTouch = MakeText(canvasGo.transform, "txtMisTouch",
                 "误触: 0 / 2", 24, new Vector2(200, -30), new Color(1f, 0.9f, 0.7f));
+            int goalPct = Mathf.RoundToInt(_game.RequiredCleanRatio * 100f);
             MakeText(canvasGo.transform, "txtGoal",
-                "目标: 80% 清理率 | 误触 ≤ 2", 18,
+                $"目标: {goalPct}% 清理率 | 误触 ≤ {_game.MaxMisTouches}", 18,
                 new Vector2(550, -30), new Color(0.7f, 0.7f, 0.8f, 0.8f));
 
             // 底部提示栏
@@ -415,7 +423,15 @@ namespace Presentation.MiniGame
             var tipImg = tipGo.AddComponent<Image>();
             tipImg.color = new Color(0.05f, 0.05f, 0.15f, 0.75f);
 
-            var tipText = tipGo.AddComponent<Text>();
+            var tipTextGo = new GameObject("TipText");
+            tipTextGo.transform.SetParent(tipGo.transform, false);
+            var tipTextRt = tipTextGo.AddComponent<RectTransform>();
+            tipTextRt.anchorMin = Vector2.zero;
+            tipTextRt.anchorMax = Vector2.one;
+            tipTextRt.offsetMin = Vector2.zero;
+            tipTextRt.offsetMax = Vector2.zero;
+
+            var tipText = tipTextGo.AddComponent<Text>();
             tipText.text = "拖动污染物(瓶/袋/油污)到右侧回收箱 | 请勿触碰水生生物(鱼/芦苇/水草)";
             tipText.font = UIBuilder.DefaultFont;
             tipText.fontSize = 18;
@@ -461,8 +477,8 @@ namespace Presentation.MiniGame
                 (float)_game.CleanedPollutants / _game.TotalPollutants * 100f : 0f;
             _txtProgress.text = $"已清理: {_game.CleanedPollutants} / {_game.TotalPollutants} ({ratio:F0}%)";
 
-            _txtMisTouch.text = $"误触: {_game.MisTouchCount} / 2";
-            _txtMisTouch.color = _game.MisTouchCount <= 2 ?
+            _txtMisTouch.text = $"误触: {_game.MisTouchCount} / {_game.MaxMisTouches}";
+            _txtMisTouch.color = _game.MisTouchCount <= _game.MaxMisTouches ?
                 new Color(1f, 0.9f, 0.7f) : new Color(1f, 0.3f, 0.3f);
         }
 
@@ -534,20 +550,21 @@ namespace Presentation.MiniGame
                 _txtResultTitle.color = new Color(0.3f, 1f, 0.5f);
                 float ratio = _game.TotalPollutants > 0 ?
                     (float)_game.CleanedPollutants / _game.TotalPollutants * 100f : 0f;
-                _txtResultDetail.text = $"清理率: {ratio:F0}%  |  误触: {_game.MisTouchCount} / 2\n淮河生态治理，你贡献了一份力量！";
+                _txtResultDetail.text = $"清理率: {ratio:F0}%  |  误触: {_game.MisTouchCount} / {_game.MaxMisTouches}\n淮河生态治理，你贡献了一份力量！";
                 _txtResultDetail.color = new Color(0.7f, 0.9f, 0.7f);
             }
             else
             {
                 _txtResultTitle.text = "挑战失败";
                 _txtResultTitle.color = new Color(1f, 0.3f, 0.3f);
-                if (_game.MisTouchCount > 2)
-                    _txtResultDetail.text = "原因: 误触水生生物超过 2 次";
+                if (_game.MisTouchCount > _game.MaxMisTouches)
+                    _txtResultDetail.text = $"原因: 误触水生生物超过 {_game.MaxMisTouches} 次";
                 else
                 {
                     float ratio = _game.TotalPollutants > 0 ?
                         (float)_game.CleanedPollutants / _game.TotalPollutants * 100f : 0f;
-                    _txtResultDetail.text = $"原因: 清理率 {ratio:F0}% 未达 80%";
+                    int requiredPct = Mathf.RoundToInt(_game.RequiredCleanRatio * 100f);
+                    _txtResultDetail.text = $"原因: 清理率 {ratio:F0}% 未达 {requiredPct}%";
                 }
                 _txtResultDetail.color = new Color(1f, 0.8f, 0.8f);
             }
@@ -579,6 +596,7 @@ namespace Presentation.MiniGame
         {
             if (evt.MiniGameId != "water_purification") return;
             _initialized = false;
+            ShowResult(true);
             Debug.Log("[水净化] 通关成功！");
         }
 

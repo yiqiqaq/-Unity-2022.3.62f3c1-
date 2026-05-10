@@ -83,6 +83,9 @@ namespace Logic
                 case IntentEvent.IntentType.GoToStartup:
                     LoadSceneAsOverlay("StartupScene");
                     break;
+                case IntentEvent.IntentType.GoToSummary:
+                    LoadSceneAsOverlay("SummaryScene");
+                    break;
                 case IntentEvent.IntentType.GoToLogin:
                     LoadSceneAsOverlay("LoginScene");
                     break;
@@ -92,11 +95,10 @@ namespace Logic
                     LoadSceneAsOverlay("RegisterScene");
                     break;
                 case IntentEvent.IntentType.LoadAccount:
-                    // 读取现存档案后直接进入第一章
                     if (AccountManager.Instance.LoadAccount(evt.PayloadInt))
                     {
                         GameManager.Instance.SetState(GameState.ChapterPlaying);
-                        LoadSceneAsOverlay("Chapter1Scene");
+                        LoadSceneAsOverlay(ResolveChapterScene());
                     }
                     else
                     {
@@ -110,7 +112,7 @@ namespace Logic
                     LoadSceneAsOverlay("Chapter1Scene");
                     break;
                 case IntentEvent.IntentType.GoToMainGame:
-                    LoadSceneAsOverlay("Chapter1Scene"); // 根据存档进度读取对应场景
+                    LoadSceneAsOverlay(ResolveChapterScene());
                     break;
                 case IntentEvent.IntentType.GoToChapter:
                     int chapterIndex = evt.PayloadInt;
@@ -130,6 +132,30 @@ namespace Logic
 #endif
                     break;
             }
+        }
+
+        /// <summary>根据存档进度确定应加载的章节场景</summary>
+        private string ResolveChapterScene()
+        {
+            var data = GameManager.Instance.CurrentAccountData;
+            if (data != null)
+            {
+                // 从后往前找最后一个有进度的章节
+                for (int i = data.ChapterProgresses.Count - 1; i >= 0; i--)
+                {
+                    var p = data.ChapterProgresses[i];
+                    if (p.ChapterId > ChapterIds.Prologue && (p.CurrentStep > 0 || p.IsCompleted))
+                    {
+                        switch (p.ChapterId)
+                        {
+                            case ChapterIds.HuaiheEco: return "Chapter1Scene";
+                            case ChapterIds.WanbeiManufacturing: return "Chapter2Scene";
+                            case ChapterIds.YangtzeDelta: return "Chapter3Scene";
+                        }
+                    }
+                }
+            }
+            return "Chapter1Scene";
         }
 
         /// <summary>公开入口：加载指定场景（带黑幕过渡）</summary>

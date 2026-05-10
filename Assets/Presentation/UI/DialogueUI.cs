@@ -36,9 +36,17 @@ namespace Presentation.UI
         private Camera _overlayCam;
         private bool _suspended; // 小游戏期间暂停响应点击
 
+        // 古风金色 — 与选择按钮字体统一
+        private static readonly Color InkGray = new Color(0.92f, 0.78f, 0.42f, 1f);
+
         private void Start()
         {
             Debug.Log("[DialogueUI] Start — creating star burst + overlay camera");
+
+            // 对话文字统一墨灰色
+            if (txtDialogue != null)
+                txtDialogue.color = InkGray;
+
             // 创建星光爆裂粒子效果
             _starBurst = new GameObject("StarBurstEffect")
                 .AddComponent<StarBurstEffect>();
@@ -167,13 +175,14 @@ namespace Presentation.UI
             for (int i = 0; i < choices.Count; i++)
             {
                 int idx = i;
-                var btn = UIBuilder.CreateTextButton(choiceContainer, $"Choice_{i}",
+                // 古风木纹按钮 — 与游戏整体美术风格统一
+                var btn = UIBuilder.CreateTraditionalButton(choiceContainer, $"Choice_{i}",
                     choices[i].OptionText, fontSize: 26,
-                    anchoredPos: Vector2.zero, sizeDelta: new Vector2(400, 55));
+                    anchoredPos: Vector2.zero, sizeDelta: new Vector2(420, 58));
                 btn.onClick.AddListener(() => OnChoiceSelected?.Invoke(idx));
 
                 var layout = btn.gameObject.AddComponent<LayoutElement>();
-                layout.preferredHeight = 55;
+                layout.preferredHeight = 58;
                 layout.flexibleWidth = 1;
             }
         }

@@ -19,6 +19,15 @@ namespace Presentation.UI
         public GameObject[] slotContainers;
         public Text[] slotTexts;
         public Button[] slotButtons;
+        public Button[] slotDeleteButtons;
+
+        [Header("删除确认弹窗")]
+        public GameObject deletePopup;
+        public Text txtDeletePrompt;
+        public Button btnConfirmDelete;
+        public Button btnCancelDelete;
+
+        private int _pendingDeleteSlot = -1;
 
         private void Start()
         {
@@ -27,6 +36,11 @@ namespace Presentation.UI
 
             if (btnBack != null)
                 btnBack.onClick.AddListener(OnBackClick);
+
+            if (btnConfirmDelete != null)
+                btnConfirmDelete.onClick.AddListener(OnConfirmDelete);
+            if (btnCancelDelete != null)
+                btnCancelDelete.onClick.AddListener(OnCancelDelete);
 
             RefreshSlots();
         }
@@ -51,6 +65,14 @@ namespace Presentation.UI
 
                     slotButtons[i].onClick.RemoveAllListeners();
                     slotButtons[i].onClick.AddListener(() => OnLoadAccount(slotIndex));
+
+                    if (slotDeleteButtons != null && slotDeleteButtons.Length > i && slotDeleteButtons[i] != null)
+                    {
+                        slotDeleteButtons[i].gameObject.SetActive(true);
+                        slotDeleteButtons[i].onClick.RemoveAllListeners();
+                        int si = slotIndex;
+                        slotDeleteButtons[i].onClick.AddListener(() => OnDeleteClick(si));
+                    }
                 }
                 else
                 {
@@ -58,6 +80,9 @@ namespace Presentation.UI
 
                     slotButtons[i].onClick.RemoveAllListeners();
                     slotButtons[i].onClick.AddListener(() => OnNewAccount(slotIndex));
+
+                    if (slotDeleteButtons != null && slotDeleteButtons.Length > i && slotDeleteButtons[i] != null)
+                        slotDeleteButtons[i].gameObject.SetActive(false);
                 }
             }
         }
@@ -75,6 +100,29 @@ namespace Presentation.UI
         private void OnNewAccount(int slotIndex)
         {
             EventBus.Trigger(new IntentEvent(IntentEvent.IntentType.GoToRegister, slotIndex));
+        }
+
+        private void OnDeleteClick(int slotIndex)
+        {
+            _pendingDeleteSlot = slotIndex;
+            if (deletePopup != null) deletePopup.SetActive(true);
+        }
+
+        private void OnConfirmDelete()
+        {
+            if (_pendingDeleteSlot > 0)
+            {
+                Core.FileUtils.DeleteSlot(_pendingDeleteSlot);
+                _pendingDeleteSlot = -1;
+            }
+            if (deletePopup != null) deletePopup.SetActive(false);
+            RefreshSlots();
+        }
+
+        private void OnCancelDelete()
+        {
+            _pendingDeleteSlot = -1;
+            if (deletePopup != null) deletePopup.SetActive(false);
         }
     }
 }

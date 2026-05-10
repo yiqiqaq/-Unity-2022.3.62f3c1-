@@ -15,6 +15,7 @@ namespace Core
             GoToMainGame,
             GoToChapter,
             GoToStartup,
+            GoToSummary,
             LoadAccount,
             CreateAccount,
             QuitGame

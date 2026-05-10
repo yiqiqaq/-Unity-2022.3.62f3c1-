@@ -25,18 +25,6 @@ namespace Presentation.MiniGame
             if (!IsRoundRunning)
                 return;
 
-            if (IsPassConditionMet())
-            {
-                FinishGame(scoreOnPass);
-                return;
-            }
-
-            if (_misTouchCount > maxMisTouches)
-            {
-                FailGame();
-                return;
-            }
-
             _remainingTime -= Time.deltaTime;
             if (_remainingTime <= 0f)
             {
@@ -86,6 +74,8 @@ namespace Presentation.MiniGame
         public int CleanedPollutants => _cleanedPollutants;
         public int MisTouchCount => _misTouchCount;
         public float DurationSeconds => durationSeconds;
+        public int MaxMisTouches => maxMisTouches;
+        public float RequiredCleanRatio => requiredCleanRatio;
 
         private void ResetChallenge()
         {

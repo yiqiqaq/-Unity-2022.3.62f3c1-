@@ -12,13 +12,15 @@ namespace Presentation.Chapter
     public class Chapter1Handler : MonoBehaviour
     {
         [SerializeField] private Text txtChapterTitle;
-        [SerializeField] private Text txtProgress;
 
         private DialogueUI _dialogue;
         private StoryChapterConfig _config;
         private List<DialogueNode> _currentList;
         private int _currentIndex;
         private int _state; // 0=prelude,1=guide,2=waitForMiniGame,3=postGame,4=knowledge,5=done
+        private Canvas _chapterCanvas;
+
+        public void SetCanvas(Canvas canvas) { _chapterCanvas = canvas; }
 
         private void Start()
         {
@@ -29,9 +31,9 @@ namespace Presentation.Chapter
 
             if (txtChapterTitle != null)
                 txtChapterTitle.text = _config.ChapterName;
-            UpdateProgress("科考进行中");
 
             EventBus.Subscribe<MiniGameCompleteEvent>(OnMiniGameComplete);
+            EventBus.Subscribe<MiniGameStartEvent>(OnMiniGameStarted);
 
             StartDialogueSequence(_config.PreludeDialogues, state: 0);
             Debug.Log("[CH1Handler] Start COMPLETE");
@@ -40,7 +42,15 @@ namespace Presentation.Chapter
         private void OnDestroy()
         {
             EventBus.Unsubscribe<MiniGameCompleteEvent>(OnMiniGameComplete);
+            EventBus.Unsubscribe<MiniGameStartEvent>(OnMiniGameStarted);
         }
+
+        private void OnMiniGameStarted(MiniGameStartEvent evt)
+        {
+            if (_chapterCanvas != null)
+                _chapterCanvas.enabled = false;
+        }
+
 
         private void StartDialogueSequence(List<DialogueNode> list, int state)
         {
@@ -126,7 +136,6 @@ namespace Presentation.Chapter
         private void ShowStartChallengeButton()
         {
             _state = 2;
-            if (txtProgress != null) txtProgress.text = "等待开始挑战";
 
             Transform parent = (_dialogue.choicePanel != null)
                 ? _dialogue.choicePanel.transform.parent
@@ -166,17 +175,18 @@ namespace Presentation.Chapter
         {
             yield return null; // 等待 MiniGame 场景卸载 + GC
 
+            if (_chapterCanvas != null)
+                _chapterCanvas.enabled = true;
+
             GameManager.Instance.SetState(GameState.ChapterPlaying);
             SaveCurrentProgress(step: 100);
 
-            UpdateProgress("挑战完成");
             StartDialogueSequence(_config.PostMiniGameDialogues, state: 3);
         }
 
         private void ShowKnowledgeCards()
         {
             _state = 4;
-            UpdateProgress("知识卡片解锁");
 
             // 解锁知识卡片
             var data = GameManager.Instance.CurrentAccountData;
@@ -252,9 +262,5 @@ namespace Presentation.Chapter
             if (completed) GameManager.Instance.AutoSaveActiveAccount();
         }
 
-        private void UpdateProgress(string text)
-        {
-            if (txtProgress != null) txtProgress.text = text;
-        }
     }
 }

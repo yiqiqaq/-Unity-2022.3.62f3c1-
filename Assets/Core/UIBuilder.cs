@@ -180,6 +180,267 @@ namespace Core
             return inputField;
         }
 
+        // ===== 古风按钮纹理缓存 =====
+        private static Sprite _cachedBtnSprite;
+        private static Sprite _cachedSlotSprite;
+
+        /// <summary>程序化生成竹简/木牌风格按钮纹理</summary>
+        public static Sprite GenerateTraditionalButtonSprite()
+        {
+            if (_cachedBtnSprite != null) return _cachedBtnSprite;
+
+            int w = 256, h = 64;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            var pixels = new Color[w * h];
+
+            Color woodBase = new Color(0.38f, 0.24f, 0.13f);
+            Color woodDark = new Color(0.22f, 0.14f, 0.07f);
+            Color woodLight = new Color(0.50f, 0.34f, 0.18f);
+            Color gold = new Color(0.75f, 0.58f, 0.30f, 0.6f);
+
+            // 填充木纹底色 + 微噪波
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float noise = Mathf.PerlinNoise(x * 0.08f, y * 0.3f) * 0.08f;
+                    Color c = Color.Lerp(woodBase, woodLight, noise);
+                    // 横向木纹条纹
+                    float grain = Mathf.Sin(y * 0.5f + Mathf.Sin(x * 0.02f) * 2f) * 0.03f;
+                    c += new Color(grain, grain * 0.8f, grain * 0.3f);
+                    pixels[y * w + x] = c;
+                }
+            }
+
+            // 上下边框深色线 (3px)
+            for (int x = 0; x < w; x++)
+            {
+                for (int b = 0; b < 3; b++)
+                {
+                    pixels[b * w + x] = woodDark;
+                    pixels[(h - 1 - b) * w + x] = woodDark;
+                }
+            }
+            // 左右边框深色线 (2px)
+            for (int y = 0; y < h; y++)
+            {
+                for (int b = 0; b < 2; b++)
+                {
+                    pixels[y * w + b] = woodDark;
+                    pixels[y * w + (w - 1 - b)] = woodDark;
+                }
+            }
+
+            // 回纹角饰 — 四角绘制 L 形纹路
+            DrawCornerPattern(pixels, w, h, 6, 16, gold, false, false);
+            DrawCornerPattern(pixels, w, h, 6, 16, gold, true, false);
+            DrawCornerPattern(pixels, w, h, 6, 16, gold, false, true);
+            DrawCornerPattern(pixels, w, h, 6, 16, gold, true, true);
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            tex.filterMode = FilterMode.Bilinear;
+
+            _cachedBtnSprite = Sprite.Create(tex,
+                new Rect(0, 0, w, h),
+                new Vector2(0.5f, 0.5f), 100f);
+            return _cachedBtnSprite;
+        }
+
+        /// <summary>程序化生成木纹边框卡槽纹理</summary>
+        private static Sprite GenerateSlotSprite()
+        {
+            if (_cachedSlotSprite != null) return _cachedSlotSprite;
+
+            int w = 256, h = 128;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            var pixels = new Color[w * h];
+
+            Color fill = new Color(0.20f, 0.14f, 0.08f, 0.45f);
+            Color border = new Color(0.50f, 0.36f, 0.18f, 0.8f);
+            Color gold = new Color(0.75f, 0.58f, 0.30f, 0.5f);
+
+            // 半透明木纹底
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    pixels[y * w + x] = fill;
+
+            // 边框 (4px)
+            for (int x = 0; x < w; x++)
+            {
+                for (int b = 0; b < 4; b++)
+                {
+                    pixels[b * w + x] = border;
+                    pixels[(h - 1 - b) * w + x] = border;
+                }
+            }
+            for (int y = 0; y < h; y++)
+            {
+                for (int b = 0; b < 4; b++)
+                {
+                    pixels[y * w + b] = border;
+                    pixels[y * w + (w - 1 - b)] = border;
+                }
+            }
+
+            // 回纹角饰
+            DrawCornerPattern(pixels, w, h, 8, 20, gold, false, false);
+            DrawCornerPattern(pixels, w, h, 8, 20, gold, true, false);
+            DrawCornerPattern(pixels, w, h, 8, 20, gold, false, true);
+            DrawCornerPattern(pixels, w, h, 8, 20, gold, true, true);
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            tex.filterMode = FilterMode.Bilinear;
+
+            _cachedSlotSprite = Sprite.Create(tex,
+                new Rect(0, 0, w, h),
+                new Vector2(0.5f, 0.5f), 100f);
+            return _cachedSlotSprite;
+        }
+
+        /// <summary>绘制回纹角饰 (L形 + 内折)</summary>
+        private static void DrawCornerPattern(Color[] pixels, int w, int h,
+            int margin, int armLen, Color color, bool flipX, bool flipY)
+        {
+            int startX = flipX ? w - 1 - margin : margin;
+            int startY = flipY ? h - 1 - margin : margin;
+            int dirX = flipX ? -1 : 1;
+            int dirY = flipY ? -1 : 1;
+
+            // 横臂
+            for (int i = 0; i < armLen; i++)
+            {
+                int x = startX + i * dirX;
+                if (x < 0 || x >= w) continue;
+                SetPixelSafe(pixels, w, h, x, startY, color);
+                SetPixelSafe(pixels, w, h, x, startY + dirY, color);
+            }
+            // 竖臂
+            for (int i = 0; i < armLen; i++)
+            {
+                int y = startY + i * dirY;
+                if (y < 0 || y >= h) continue;
+                SetPixelSafe(pixels, w, h, startX, y, color);
+                SetPixelSafe(pixels, w, h, startX + dirX, y, color);
+            }
+            // 内折小横线
+            int foldLen = armLen / 3;
+            int foldY = startY + dirY * (armLen - 1);
+            for (int i = 0; i < foldLen; i++)
+            {
+                int x = startX + (armLen / 2 + i) * dirX;
+                SetPixelSafe(pixels, w, h, x, foldY, color);
+            }
+        }
+
+        private static void SetPixelSafe(Color[] pixels, int w, int h, int x, int y, Color c)
+        {
+            if (x >= 0 && x < w && y >= 0 && y < h)
+                pixels[y * w + x] = c;
+        }
+
+        /// <summary>创建古风竹简/木牌按钮 (程序化纹理 + 金色文字 + 阴影)</summary>
+        public static Button CreateTraditionalButton(Transform parent, string name, string label,
+            int fontSize = 26, Vector2? anchoredPos = null, Vector2? sizeDelta = null)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            if (anchoredPos.HasValue) rt.anchoredPosition = anchoredPos.Value;
+            if (sizeDelta.HasValue) rt.sizeDelta = sizeDelta.Value;
+            else rt.sizeDelta = new Vector2(200, 55);
+
+            var btn = go.AddComponent<Button>();
+            var bg = go.AddComponent<Image>();
+            bg.sprite = GenerateTraditionalButtonSprite();
+            bg.type = Image.Type.Sliced;
+            bg.color = Color.white;
+            btn.targetGraphic = bg;
+
+            // 古风色调：hover 提亮，press 变暗如印章
+            var colors = btn.colors;
+            colors.normalColor = new Color(0.9f, 0.85f, 0.75f);
+            colors.highlightedColor = new Color(1.05f, 1.0f, 0.88f);
+            colors.pressedColor = new Color(0.6f, 0.5f, 0.38f);
+            colors.disabledColor = new Color(0.5f, 0.45f, 0.4f);
+            btn.colors = colors;
+
+            // 文字子对象
+            var txtGo = new GameObject("Label");
+            txtGo.transform.SetParent(go.transform, false);
+            var txtRt = txtGo.AddComponent<RectTransform>();
+            txtRt.anchorMin = Vector2.zero;
+            txtRt.anchorMax = Vector2.one;
+            txtRt.offsetMin = new Vector2(10, 4);
+            txtRt.offsetMax = new Vector2(-10, -4);
+
+            var txt = txtGo.AddComponent<Text>();
+            txt.text = label;
+            txt.font = DefaultFont;
+            txt.fontSize = fontSize;
+            txt.alignment = TextAnchor.MiddleCenter;
+            txt.color = new Color(0.92f, 0.78f, 0.42f);
+            txt.raycastTarget = false;
+
+            // 阴影增加立体感
+            var shadow = txtGo.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0.1f, 0.06f, 0.02f, 0.8f);
+            shadow.effectDistance = new Vector2(2, -2);
+
+            return btn;
+        }
+
+        /// <summary>创建古风存档卡槽按钮 (木纹边框 + 半透明底)</summary>
+        public static Button CreateTraditionalSlotButton(Transform parent, string name,
+            Vector2? anchoredPos = null, Vector2? sizeDelta = null)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rt = go.AddComponent<RectTransform>();
+            if (anchoredPos.HasValue) rt.anchoredPosition = anchoredPos.Value;
+            if (sizeDelta.HasValue) rt.sizeDelta = sizeDelta.Value;
+            else rt.sizeDelta = new Vector2(600, 150);
+
+            var btn = go.AddComponent<Button>();
+            var bg = go.AddComponent<Image>();
+            bg.sprite = GenerateSlotSprite();
+            bg.type = Image.Type.Sliced;
+            bg.color = Color.white;
+            btn.targetGraphic = bg;
+
+            var colors = btn.colors;
+            colors.normalColor = new Color(0.95f, 0.9f, 0.82f);
+            colors.highlightedColor = new Color(1.1f, 1.05f, 0.95f);
+            colors.pressedColor = new Color(0.75f, 0.68f, 0.55f);
+            btn.colors = colors;
+
+            return btn;
+        }
+
+        /// <summary>创建全屏背景图片 (Resources 文件夹下加载)</summary>
+        public static GameObject CreateBackground(Transform parent, string name, string resourcePath)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.SetAsFirstSibling();
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            var img = go.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.color = Color.white;
+            var sprite = Resources.Load<Sprite>(resourcePath);
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.preserveAspect = false;
+            }
+            return go;
+        }
+
         /// <summary>创建全屏半透明遮罩面板 (用于弹窗背景)</summary>
         public static GameObject CreateOverlay(Transform parent, string name, float alpha = 0.6f)
         {

@@ -19,26 +19,26 @@ namespace Bootstrap
             var canvas = UIBuilder.CreateCanvas("Chapter3Canvas");
             var root = canvas.transform;
 
+            // 第三章对话与游戏背景板
+            UIBuilder.CreateBackground(root, "Chapter3Bg", "Chapter3DialogueBg");
+
             var txtChapterTitle = UIBuilder.CreateText(root, "txtChapterTitle", "",
                 fontSize: 36, anchor: TextAnchor.MiddleCenter, anchoredPos: new Vector2(0, 310));
-            var txtProgress = UIBuilder.CreateText(root, "txtProgress", "",
-                fontSize: 18, anchor: TextAnchor.MiddleCenter,
-                color: new Color(1, 1, 1, 0.5f), anchoredPos: new Vector2(0, 275));
 
             var dialogueArea = new GameObject("DialogueArea");
             dialogueArea.transform.SetParent(root, false);
             var daRt = dialogueArea.AddComponent<RectTransform>();
-            daRt.anchorMin = new Vector2(0.08f, 0.22f);
-            daRt.anchorMax = new Vector2(0.92f, 0.72f);
+            daRt.anchorMin = new Vector2(0.03f, 0.22f);
+            daRt.anchorMax = new Vector2(0.97f, 0.72f);
             daRt.offsetMin = Vector2.zero;
             daRt.offsetMax = Vector2.zero;
 
             var txtDialogue = UIBuilder.CreateText(dialogueArea.transform, "txtDialogue", "",
-                fontSize: 26, anchor: TextAnchor.UpperLeft, anchoredPos: Vector2.zero, sizeDelta: Vector2.zero);
+                fontSize: 27, anchor: TextAnchor.UpperLeft, anchoredPos: Vector2.zero, sizeDelta: Vector2.zero);
             var tdRt = txtDialogue.GetComponent<RectTransform>();
             tdRt.anchorMin = Vector2.zero; tdRt.anchorMax = Vector2.one;
             tdRt.offsetMin = new Vector2(20, 10); tdRt.offsetMax = new Vector2(-20, -10);
-            txtDialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
+            txtDialogue.horizontalOverflow = HorizontalWrapMode.Overflow;
             txtDialogue.verticalOverflow = VerticalWrapMode.Overflow;
 
             var choicePanel = new GameObject("ChoicePanel");
@@ -47,7 +47,7 @@ namespace Bootstrap
             cpRt.anchorMin = new Vector2(0.25f, 0.20f);
             cpRt.anchorMax = new Vector2(0.75f, 0.70f);
             cpRt.offsetMin = Vector2.zero; cpRt.offsetMax = Vector2.zero;
-            choicePanel.AddComponent<Image>().color = new Color(0, 0, 0, 0.55f);
+            choicePanel.AddComponent<Image>().color = new Color(0.12f, 0.10f, 0.06f, 0.15f); // 高透明度木色底
 
             var choiceContainer = new GameObject("ChoiceContainer");
             choiceContainer.transform.SetParent(choicePanel.transform, false);
@@ -86,9 +86,12 @@ namespace Bootstrap
 
             gameObject.AddComponent<MiniGameLoader>();
 
+            // 暂停菜单
+            gameObject.AddComponent<PauseMenuUI>().Build(root);
+
             var handler = gameObject.AddComponent<Chapter3Handler>();
+            handler.SetCanvas(canvas);
             SetPrivateField(handler, "txtChapterTitle", txtChapterTitle);
-            SetPrivateField(handler, "txtProgress", txtProgress);
 
             Debug.Log("[Chapter3BS] Awake COMPLETE");
         }
